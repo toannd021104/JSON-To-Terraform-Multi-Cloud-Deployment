@@ -1,0 +1,74 @@
+{
+  "instances": [
+    {
+      "name": "vm1",
+      "image": "Ubuntu 16",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "networks": [
+        {
+          "name": "net1",
+          "ip": "192.168.1.10"
+        }
+      ]
+    },
+    {
+      "name": "s2",
+      "image": "Ubuntu 16",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "networks": [
+        {
+          "name": "net2",
+          "ip": "192.168.2.10"
+        }
+      ]
+    }
+  ],
+  "networks": [
+    {
+      "name": "net2",
+      "cidr": "192.168.2.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.2.1",
+      "enable_dhcp": false
+    },
+    {
+      "name": "net1",
+      "cidr": "192.168.1.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.1.1",
+      "enable_dhcp": false
+    },
+    {
+      "name": "net3",
+      "cidr": "192.168.3.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.3.1",
+      "enable_dhcp": false
+    }
+  ],
+  "routers": [
+    {
+      "name": "R1",
+      "networks": [
+        {
+          "name": "net2",
+          "ip": "192.168.2.1"
+        },
+        {
+          "name": "net1",
+          "ip": "192.168.1.1"
+        },
+        {
+          "name": "net3",
+          "ip": "192.168.3.1"
+        }
+      ],
+      "external": true,
+      "routes": []
+    }
+  ]
+}
