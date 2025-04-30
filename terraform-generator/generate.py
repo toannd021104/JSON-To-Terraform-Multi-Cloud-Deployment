@@ -255,6 +255,7 @@ class TerraformGenerator:
         # Tạo thư mục chính
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         main_folder = f"{self.provider}_{timestamp}"
+        main_folder = os.path.join("../terraform-projects", main_folder)
         os.makedirs(main_folder, exist_ok=True)
         
         # Copy file run_terraform.py vào thư mục chính nếu nó tồn tại
