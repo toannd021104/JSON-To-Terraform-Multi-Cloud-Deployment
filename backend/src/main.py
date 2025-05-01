@@ -6,6 +6,7 @@ import subprocess
 import os
 import asyncio
 from .scanner import scan_projects  # Giữ nguyên import scanner
+import re
 
 app = FastAPI()
 BASE_DIR = "/app/terraform-projects/"
@@ -29,13 +30,20 @@ class TerraformCommand(BaseModel):
     command: str
     folders: List[str]
 
+def clean_ansi_codes(text):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
+
 @app.post("/terraform/execute")
 async def execute_terraform(command: TerraformCommand):
     results = {}
     for folder in command.folders:
         full_path = os.path.join(BASE_DIR, folder)
         if not os.path.exists(full_path):
-            results[folder] = f"Error: Folder {full_path} not found"
+            results[folder] = {
+                "success": False,
+                "output": f"Error: Folder {full_path} not found"
+            }
             continue
         
         try:
@@ -49,16 +57,13 @@ async def execute_terraform(command: TerraformCommand):
             
             stdout, stderr = await process.communicate()
             
-            if process.returncode != 0:
-                results[folder] = {
-                    "success": False,
-                    "output": stderr.decode('utf-8').strip()
-                }
-            else:
-                results[folder] = {
-                    "success": True,
-                    "output": stdout.decode('utf-8').strip()
-                }
+            output_text = stdout.decode('utf-8') if process.returncode == 0 else stderr.decode('utf-8')
+            cleaned_output = clean_ansi_codes(output_text)
+            
+            results[folder] = {
+                "success": process.returncode == 0,
+                "output": cleaned_output.strip()
+            }
         except Exception as e:
             results[folder] = {
                 "success": False,

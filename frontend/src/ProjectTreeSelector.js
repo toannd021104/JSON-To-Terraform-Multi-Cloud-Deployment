@@ -80,7 +80,7 @@ export default function EnhancedProjectTreeSelector() {
       .filter(path => path !== null);
   
     if (selectedItems.length === 0) {
-      setOutput("Error: No valid projects selected");
+      setOutput(<div className="text-red-500">Error: No valid projects selected</div>);
       return;
     }
   
@@ -90,7 +90,7 @@ export default function EnhancedProjectTreeSelector() {
     };
   
     setIsExecuting(true);
-    setOutput("Starting command execution...\n");
+    setOutput(<div className="text-gray-400">Starting command execution...</div>);
   
     try {
       const response = await fetch(`${API_URL}/terraform/execute`, {
@@ -101,15 +101,29 @@ export default function EnhancedProjectTreeSelector() {
   
       const result = await response.json();
       
-      let outputText = "";
-      Object.entries(result.results).forEach(([folder, result]) => {
-        outputText += `=== ${folder} ===\n`;
-        outputText += result.output + "\n\n";
-      });
+      const outputElements = Object.entries(result.results).map(([folder, result]) => (
+        <div key={folder} className="mb-4">
+          <div className="font-bold text-yellow-400 mb-1">=== {folder} ===</div>
+          <pre className={`p-2 rounded ${result.success ? 'text-green-400' : 'text-red-400'}`}>
+            {result.output}
+          </pre>
+        </div>
+      ));
       
-      setOutput(prev => prev + outputText + "\nExecution completed!");
+      setOutput(prev => (
+        <>
+          {prev}
+          {outputElements}
+          <div className="text-green-500 mt-2">Execution completed!</div>
+        </>
+      ));
     } catch (err) {
-      setOutput(prev => prev + `\n[ERROR] ${err.message}`);
+      setOutput(prev => (
+        <>
+          {prev}
+          <div className="text-red-500">[ERROR] {err.message}</div>
+        </>
+      ));
     } finally {
       setIsExecuting(false);
     }
@@ -264,7 +278,7 @@ export default function EnhancedProjectTreeSelector() {
         <div className="p-4 bg-gray-100 border-t border-gray-200">
           <h3 className="text-sm font-semibold mb-2 text-gray-700">Output:</h3>
           <pre className="bg-gray-800 text-white p-4 rounded-md text-sm overflow-auto max-h-64">
-            {output || "No output yet. Select projects and click a command button."}
+          {output || <div className="text-gray-500">No output yet. Select projects and click a command button.</div>}
           </pre>
         </div>
       </div>
