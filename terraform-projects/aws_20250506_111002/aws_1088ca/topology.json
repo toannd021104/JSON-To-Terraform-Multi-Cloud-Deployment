@@ -1,27 +1,27 @@
 {
   "instances": [
     {
-      "name": "vm1_e7d6a9",
+      "name": "vm1_1088ca",
       "image": "Ubuntu 16",
       "cpu": 2,
       "ram": 4,
       "disk": 20,
       "networks": [
         {
-          "name": "net1_e7d6a9",
+          "name": "net1_1088ca",
           "ip": "192.168.1.10"
         }
       ]
     },
     {
-      "name": "s2_e7d6a9",
+      "name": "s2_1088ca",
       "image": "Ubuntu 16",
       "cpu": 2,
       "ram": 4,
       "disk": 20,
       "networks": [
         {
-          "name": "net2_e7d6a9",
+          "name": "net2_1088ca",
           "ip": "192.168.2.10"
         }
       ]
@@ -29,21 +29,21 @@
   ],
   "networks": [
     {
-      "name": "net2_e7d6a9",
+      "name": "net2_1088ca",
       "cidr": "192.168.2.0/24",
       "pool": [],
       "gateway_ip": "192.168.2.1",
       "enable_dhcp": false
     },
     {
-      "name": "net1_e7d6a9",
+      "name": "net1_1088ca",
       "cidr": "192.168.1.0/24",
       "pool": [],
       "gateway_ip": "192.168.1.1",
       "enable_dhcp": false
     },
     {
-      "name": "net3_e7d6a9",
+      "name": "net3_1088ca",
       "cidr": "192.168.3.0/24",
       "pool": [],
       "gateway_ip": "192.168.3.1",
@@ -52,18 +52,18 @@
   ],
   "routers": [
     {
-      "name": "R1_e7d6a9",
+      "name": "R1_1088ca",
       "networks": [
         {
-          "name": "net2_e7d6a9",
+          "name": "net2_1088ca",
           "ip": "192.168.2.1"
         },
         {
-          "name": "net1_e7d6a9",
+          "name": "net1_1088ca",
           "ip": "192.168.1.1"
         },
         {
-          "name": "net3_e7d6a9",
+          "name": "net3_1088ca",
           "ip": "192.168.3.1"
         }
       ],

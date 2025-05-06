@@ -73,3 +73,5 @@ coverage/
 .DS_Store
 .idea/
 *.iml
+~/.aws/*
+!~/.aws/config

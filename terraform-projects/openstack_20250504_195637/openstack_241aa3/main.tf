@@ -1,4 +1,4 @@
-# Config tự động - Phiên bản 988b2e
+# Config tự động - Phiên bản 241aa3
         terraform {
         required_version = ">= 0.14.0"
         required_providers {
@@ -39,8 +39,8 @@
         for_each = { for inst in local.topology.instances : inst.name => inst }
 
         instance_name = each.value.name
-        image_name    = lookup({"vm1_988b2e": {"image": "Ubuntu 16", "flavor": "m2"}, "s2_988b2e": {"image": "Ubuntu 16", "flavor": "m2"}}, each.key, {}).image
-        flavor_name   = lookup({"vm1_988b2e": {"image": "Ubuntu 16", "flavor": "m2"}, "s2_988b2e": {"image": "Ubuntu 16", "flavor": "m2"}}, each.key, {}).flavor
+        image_name    = lookup({"vm1_241aa3": {"image": "Ubuntu 16", "flavor": "m2"}, "s2_241aa3": {"image": "Ubuntu 16", "flavor": "m2"}}, each.key, {}).image
+        flavor_name   = lookup({"vm1_241aa3": {"image": "Ubuntu 16", "flavor": "m2"}, "s2_241aa3": {"image": "Ubuntu 16", "flavor": "m2"}}, each.key, {}).flavor
         network_id    = module.network.network_ids[each.value.networks[0].name]
         fixed_ip      = each.value.networks[0].ip
         }

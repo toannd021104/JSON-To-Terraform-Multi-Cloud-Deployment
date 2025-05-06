@@ -89,8 +89,8 @@ class AWSUtils:
                 instances.extend([it['InstanceType'] for it in page['InstanceTypes']])
             
             # Ưu tiên T-series trước
-            t_series = [it for it in instances if it.startswith(('t3.', 't4g.'))]
-            others = [it for it in instances if not it.startswith(('t3.', 't4g.'))]
+            t_series = [it for it in instances if it.startswith(('t2.', 't3'))]
+            others = [it for it in instances if not it.startswith(('t2', 't3'))]
             
             return t_series + others
             
@@ -145,7 +145,6 @@ class AWSUtils:
                     if len(matching_types) > 3:
                         print(f"   (Tổng cộng {len(matching_types)} options)")
                     
-                    # Lưu instance type (ưu tiên t3.medium)
                     instance_result['instance_type'] = matching_types[0]
                 else:
                     print(f" LỖI: Không tìm thấy instance type phù hợp")

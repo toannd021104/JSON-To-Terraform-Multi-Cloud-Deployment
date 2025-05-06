@@ -6,12 +6,18 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
- && wget https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip \
- && unzip terraform_1.5.7_linux_amd64.zip \
- && mv terraform /usr/local/bin/ \
- && rm terraform_1.5.7_linux_amd64.zip \
- && rm -rf /var/lib/apt/lists/*
-
+    curl \  
+    && wget https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip \
+    && unzip terraform_1.5.7_linux_amd64.zip \
+    && mv terraform /usr/local/bin/ \
+    && rm terraform_1.5.7_linux_amd64.zip \
+    && rm -rf /var/lib/apt/lists/* \
+    # Cài đặt AWS CLI v2
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf awscliv2.zip aws \
+    && rm -rf /var/lib/apt/lists/*
 # Copy source code
 COPY . .
 
