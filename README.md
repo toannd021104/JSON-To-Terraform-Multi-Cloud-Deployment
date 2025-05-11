@@ -10,8 +10,7 @@ This guide will help you set up and run the project, including configuring AWS S
 ## Prerequisites
 
 - AWS CLI installed
-- Docker and Docker Compose installed
-- Node.js and npm installed
+- Docker and Docker Compose (for backend) and Node.js and npm (for frontend) installed (if you want to use web interface)
 - Terraform installed (for infrastructure management)
 
 ## AWS SSO Configuration
