@@ -67,22 +67,22 @@ resource "aws_route_table_association" "public" {
 # -----------------------------------------
 # Phần dưới đây tạm comment để tránh chi phí phát sinh
 # Elastic IP nếu có router external
-# resource "aws_eip" "nat" {
-#   count = length([for r in var.routers : r if r.external]) > 0 ? 1 : 0
-# }
+resource "aws_eip" "nat" {
+  count = length([for r in var.routers : r if r.external]) > 0 ? 1 : 0
+}
 
 # NAT Gateway nếu có router external
-# resource "aws_nat_gateway" "nat" {
-#   count = length(aws_eip.nat)
+resource "aws_nat_gateway" "nat" {
+  count = length(aws_eip.nat)
   
-#   depends_on    = [aws_internet_gateway.igw]
-#   allocation_id = aws_eip.nat[0].id
-#   subnet_id     = aws_subnet.public_subnet[0].id
+  depends_on    = [aws_internet_gateway.igw]
+  allocation_id = aws_eip.nat[0].id
+  subnet_id     = aws_subnet.public_subnet[0].id
   
-#   tags = {
-#     Name = "custom-nat"
-#   }
-# }
+  tags = {
+    Name = "custom-nat"
+  }
+}
 # -----------------------------------------
 
 # Route table cho private subnets dựa trên router từ JSON
@@ -92,20 +92,11 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
   
   # Route đến NAT Gateway nếu router có external
-  # dynamic "route" {
-  #   for_each = each.value.external && length(aws_nat_gateway.nat) > 0 ? [1] : []
-  #   content {
-  #     cidr_block = "0.0.0.0/0"
-  #     gateway_id = aws_nat_gateway.nat[0].id
-  #   }
-  # }
-  
-  # Thêm route tĩnh từ JSON (nếu có)
   dynamic "route" {
-    for_each = each.value.routes
+    for_each = each.value.external && length(aws_nat_gateway.nat) > 0 ? [1] : []
     content {
-      cidr_block = route.value.cidr_block
-      gateway_id = route.value.gateway_id  # Cần gateway cụ thể nếu dùng
+      cidr_block = "0.0.0.0/0"
+      gateway_id = aws_nat_gateway.nat[0].id
     }
   }
   

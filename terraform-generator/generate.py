@@ -190,6 +190,7 @@ class TerraformGenerator:
         flavor_name   = lookup({json.dumps(validated_map)}, each.key, {{}}).flavor
         network_id    = module.network.network_ids[each.value.networks[0].name]
         fixed_ip      = each.value.networks[0].ip
+        user_data = each.value.cloud_init != null ? file("${{path.module}}/cloud_init/${{each.value.cloud_init}}") : null
         }}"""
         return instance_config
 
@@ -219,7 +220,10 @@ class TerraformGenerator:
             instance_type = lookup({json.dumps(validated_map)}, each.key, {{}}).instance_type
             subnet_id     = module.network.private_subnet_ids[each.value.networks[0].name]
             fixed_ip      = each.value.networks[0].ip
-            }}"""
+            user_data = each.value.cloud_init != null ? file("${{path.module}}/cloud_init/${{each.value.cloud_init}}") : null
+            key_name = aws_key_pair.my_key.key_name
+            security_group_ssh_ids = [aws_security_group.ssh_access.id]
+        }}"""
         return instance_config
 
     def output_section(self):
@@ -313,7 +317,7 @@ class TerraformGenerator:
 
     def modify_topology(self, topology, suffix):
         """Thêm suffix vào tên các resource"""
-        modified = json.loads(json.dumps(topology))  # Deep copy
+        modified = json.loads(json.dumps(topology))  
         
         # Sửa tên instances
         for instance in modified.get('instances', []):

@@ -1,0 +1,7 @@
+#cloud-config
+packages:
+  - net-tools
+
+runcmd:
+  - echo "Xin chao! ifconfig da san sang su dung" > /tmp/hello.txt
+  - ifconfig > /tmp/network-info.txt
