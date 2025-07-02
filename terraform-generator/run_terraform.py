@@ -6,10 +6,6 @@ from concurrent.futures import ThreadPoolExecutor
 def run_command(folder, command):
     try:
         print(f"\n Đang xử lý {folder.name}...")
-        
-        # Lưu thư mục hiện tại
-        #original_dir = os.getcwd()
-        
         # Chuyển đến thư mục cần xử lý
         os.chdir(str(folder.absolute()))
         

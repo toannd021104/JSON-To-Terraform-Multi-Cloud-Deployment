@@ -6,7 +6,7 @@ import shutil
 from datetime import datetime
 from validate_json import validate_topology_file
 import terraform_templates as tf_tpl
-
+import subprocess
 class TerraformGenerator:
     def __init__(self, provider, num_copies=1):
         self.provider = provider.lower()
@@ -84,7 +84,6 @@ class TerraformGenerator:
                 tf_tpl.os_provider_block() + "\n" +
                 tf_tpl.os_locals_block() + "\n" +
                 tf_tpl.os_keypair_block() + "\n" +
-                tf_tpl.os_bastion_block() + "\n" +
                 tf_tpl.os_network_module_block() + "\n" +
                 tf_tpl.os_instance_module_block(validated_map)
             )
@@ -98,12 +97,23 @@ class TerraformGenerator:
         os.makedirs(main_folder, exist_ok=True)
         if os.path.exists("run_terraform.py"):
             shutil.copy("run_terraform.py", os.path.join(main_folder, "run_terraform.py"))
+            for i in range(self.num_copies):
+                suffix = str(uuid.uuid4())[:6]
+                dir_name = f"{self.provider}_{suffix}"
+                full_path = os.path.join(main_folder, dir_name)
+                self.create_provider_directory(full_path, original_topology, suffix)
+            # Chạy script sau khi đã tạo xong tất cả thư mục
+
         for i in range(self.num_copies):
             suffix = str(uuid.uuid4())[:6]
             dir_name = f"{self.provider}_{suffix}"
             full_path = os.path.join(main_folder, dir_name)
             self.create_provider_directory(full_path, original_topology, suffix)
-
+            subprocess.run(
+                ["python3", "run_terraform.py", "apply"],
+                cwd=main_folder,
+                check=True
+            )
     def create_provider_directory(self, dir_path, original_topology, suffix):
         try:
             shutil.copytree(self.provider, dir_path)

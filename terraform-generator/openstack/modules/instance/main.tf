@@ -21,3 +21,9 @@ resource "openstack_compute_instance_v2" "instance" {
   user_data = var.user_data
 }
 
+resource "openstack_compute_floatingip_associate_v2" "fip_assoc" {
+  for_each = { for inst in [var.instance_name] : inst => inst if var.floating_ip_address != null }
+
+  floating_ip = var.floating_ip_address
+  instance_id = openstack_compute_instance_v2.instance[each.key].id
+}

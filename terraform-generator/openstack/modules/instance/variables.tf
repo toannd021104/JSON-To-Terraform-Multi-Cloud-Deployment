@@ -28,3 +28,8 @@ variable "security_groups" {
   type = list(string)
   default = []
 }
+
+variable "floating_ip_address" {
+  type    = string
+  default = null
+}

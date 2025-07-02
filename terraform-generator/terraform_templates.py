@@ -183,17 +183,3 @@ def os_instance_module_block(validated_map):
       security_groups = ["default"] 
     }}
     """)
-def os_bastion_block():
-    return textwrap.dedent("""\
-    resource "openstack_compute_instance_v2" "bastion" {
-      name        = "bastion-host"
-      image_name  = "ubuntu-jammy"
-      flavor_name = "m2"
-      key_pair    = openstack_compute_keypair_v2.my_key.name
-      security_groups = ["default"]
-
-      network {
-        name = "public-network"
-      }
-    }
-    """)

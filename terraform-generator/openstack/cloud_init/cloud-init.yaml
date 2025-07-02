@@ -1,7 +1,4 @@
 #cloud-config
-packages:
-  - net-tools
-
 users:
   - name: ubuntu
     plain_text_passwd: ubuntu
@@ -9,6 +6,7 @@ users:
     shell: /bin/bash
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
 
-runcmd:
-  - echo "Xin chao! ifconfig da san sang su dung" > /tmp/hello.txt
-  - ifconfig > /tmp/network-info.txt
+packages:
+  - nginx
+  - git
+  - curl
