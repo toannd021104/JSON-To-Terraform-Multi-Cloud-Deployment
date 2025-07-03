@@ -34,3 +34,9 @@ variable "security_group_ids" {
   type = list(string) 
   
 }
+
+variable "assign_public_ip" {
+  type        = bool
+  default     = false
+  description = "Whether to assign Elastic IP to the instance"
+}

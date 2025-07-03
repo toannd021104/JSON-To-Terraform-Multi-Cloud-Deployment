@@ -12,3 +12,15 @@ resource "aws_instance" "main" {
     Name = var.instance_name
   }
 }
+
+resource "aws_eip" "this" {
+  count    = var.assign_public_ip ? 1 : 0
+  instance = aws_instance.main.id
+  
+  tags = {
+    Name = "${var.instance_name}-eip"
+  }
+
+  depends_on = [aws_instance.main]
+}
+

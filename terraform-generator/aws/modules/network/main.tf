@@ -56,7 +56,7 @@ resource "aws_route_table" "public" {
     Name = "public-rt"
   }
 }
-
+# 8. Liên kết Public Subnet với Public Route Table
 resource "aws_route_table_association" "public" {
   for_each = { for idx, subnet in aws_subnet.public_subnet : idx => subnet }
   
@@ -66,6 +66,9 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_eip" "nat" {
   count = length([for r in var.routers : r if r.external]) > 0 ? 1 : 0
+   tags = {
+    Name = "eip-nat"
+  }
 }
 
 # NAT Gateway nếu có router external
@@ -80,9 +83,8 @@ resource "aws_nat_gateway" "nat" {
     Name = "custom-nat"
   }
 }
-# -----------------------------------------
 
-# Route table cho private subnets dựa trên router từ JSON
+# Route table cho private subnets 
 resource "aws_route_table" "private" {
   for_each = { for r in var.routers : r.name => r }
   

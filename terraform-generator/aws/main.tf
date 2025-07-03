@@ -48,10 +48,26 @@ module "instance" {
     [module.security_group.group_ids["default"]] # Sử dụng default SG từ output
   )
   instance_name                = each.value.name
-  ami_id                       = lookup({"vm1": {"ami": "ami-03f8acd418785369b", "instance_type": "t3a.medium"}, "s2": {"ami": "ami-03f8acd418785369b", "instance_type": "t3a.medium"}}, each.key, {}).ami
-  instance_type                = lookup({"vm1": {"ami": "ami-03f8acd418785369b", "instance_type": "t3a.medium"}, "s2": {"ami": "ami-03f8acd418785369b", "instance_type": "t3a.medium"}}, each.key, {}).instance_type
+  ami_id                       = lookup({"vm1": {"ami": "ami-03f8acd418785369b", "instance_type": "t2.micro"}, "s2": {"ami": "ami-03f8acd418785369b", "instance_type": "t2.micro"}}, each.key, {}).ami
+  instance_type                = lookup({"vm1": {"ami": "ami-03f8acd418785369b", "instance_type": "t2.micro"}, "s2": {"ami": "ami-03f8acd418785369b", "instance_type": "t2.micro"}}, each.key, {}).instance_type
   subnet_id                    = module.network.private_subnet_ids[each.value.networks[0].name]
   fixed_ip                     = each.value.networks[0].ip
   user_data                    = each.value.cloud_init != null ? file("${path.module}/cloud_init/${each.value.cloud_init}") : null
-  key_name                     = lookup(each.value, "keypair", null)
+  key_name                     = "toanndcloud-keypair"
+  assign_public_ip             = lookup(each.value, "floating_ip", "false") == "true" 
 }
+
+resource "aws_instance" "bastion" {
+  ami                         = "ami-03f8acd418785369b"
+  instance_type               = "t2.micro"
+  subnet_id                   = module.network.public_subnet_ids[0]
+  key_name                    = "toanndcloud-keypair"
+  security_groups             = [module.security_group.group_ids["ssh-sg"]]
+  associate_public_ip_address = true
+  user_data = templatefile("${path.module}/cloud_init/bastion.sh", {
+  file_content = file("${path.root}/modules/keypair/tf-cloud-init")})
+  tags = {
+    Name = "bastion-host"
+  }
+}
+

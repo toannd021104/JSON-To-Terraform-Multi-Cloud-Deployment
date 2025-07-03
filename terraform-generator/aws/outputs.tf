@@ -10,8 +10,7 @@ output "private_subnet_ids" {
   value = module.network.private_subnet_ids
 }
 
-output "puclic_ip"{
-  value = {
-    for k, v in module.instance : k => v.public_ip
-  }
+output "bastion_public_ip" {
+  description = "Public IP của bastion host"
+  value       = aws_instance.bastion.public_ip
 }
