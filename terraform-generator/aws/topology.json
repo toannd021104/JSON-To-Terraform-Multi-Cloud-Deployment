@@ -15,7 +15,7 @@
       ],
       "keypair": "toanndcloud-keypair",  
       "security_groups": ["ssh-sg"],
-      "floating_ip": "true"
+      "floating_ip": true
     }
       ,
     {

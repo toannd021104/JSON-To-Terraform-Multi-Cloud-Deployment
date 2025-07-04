@@ -15,7 +15,7 @@
       ],
       "keypair": "toanndcloud-keypair",  
       "security_groups": ["default", "web-sg"],
-      "floating_ip": "10.102.199.167"
+      "floating_ip": "10.102.199.153"
     }
       ,
     {

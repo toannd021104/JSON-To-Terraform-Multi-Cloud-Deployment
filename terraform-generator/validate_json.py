@@ -5,7 +5,7 @@ import subprocess
 from jsonschema import validate, ValidationError
 from typing import Tuple, List, Dict
 
-# Định nghĩa schema cho topology.json
+# JSON schema to validate topology.json
 TOPOLOGY_SCHEMA = {
     "type": "object",
     "required": ["instances", "networks", "routers"],
@@ -21,7 +21,7 @@ TOPOLOGY_SCHEMA = {
                     "cpu": {"type": "integer", "minimum": 1},
                     "ram": {"type": "integer", "minimum": 1},
                     "disk": {"type": "integer", "minimum": 1},
-                    "cloud_init": {"type": "string"},  # Trường này không bắt buộc
+                    "cloud_init": {"type": "string"},
                     "networks": {
                         "type": "array",
                         "items": {
@@ -32,7 +32,10 @@ TOPOLOGY_SCHEMA = {
                                 "ip": {"type": "string", "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"}
                             }
                         }
-                    }
+                    },
+                    "keypair": {"type": "string"},
+                    "security_groups": {"type": "array", "items": {"type": "string"}},
+                    "floating_ip": {"type": ["string", "boolean"]}
                 }
             }
         },
@@ -76,144 +79,132 @@ TOPOLOGY_SCHEMA = {
     }
 }
 
+# Validate IPv4 format
 def validate_ip(ip: str) -> bool:
-    """Kiểm tra địa chỉ IPv4 hợp lệ"""
     try:
         ipaddress.IPv4Address(ip)
         return True
     except ValueError:
         return False
 
+# Validate CIDR format
 def validate_cidr(cidr: str) -> bool:
-    """Kiểm tra CIDR hợp lệ"""
     try:
         ipaddress.IPv4Network(cidr, strict=False)
         return True
     except ValueError:
         return False
 
+# Check if an IP belongs to a given CIDR
 def check_ip_in_cidr(ip: str, cidr: str) -> bool:
-    """Kiểm tra IP có thuộc dải CIDR không"""
     try:
         return ipaddress.IPv4Address(ip) in ipaddress.IPv4Network(cidr, strict=False)
     except ValueError:
         return False
 
+# Validate a cloud-init file using `cloud-init schema`
 def validate_cloud_init_file(cloud_init_path: str, provider: str) -> str:
-    """
-    Kiểm tra file cloud-init hợp lệ bằng lệnh cloud-init schema.
-    Trả về None nếu hợp lệ, trả về chuỗi lỗi nếu không hợp lệ hoặc không đọc được file.
-    File cloud-init được tìm trong thư mục <provider>/cloud_init
-    """
-    abs_path = os.path.join(provider, "cloud_init", cloud_init_path)
-    if not os.path.isfile(abs_path):
-        return f"File cloud-init '{abs_path}' không tồn tại"
+    path = os.path.join(provider, "cloud_init", cloud_init_path)
+    if not os.path.isfile(path):
+        return f"Cloud-init file '{path}' not found"
     try:
         result = subprocess.run(
-            ["cloud-init", "schema", "--config-file", abs_path, "--annotate"],
-            capture_output=True, text=True, check=False
+            ["cloud-init", "schema", "--config-file", path, "--annotate"],
+            capture_output=True, text=True
         )
         if result.returncode != 0:
-            return f"File cloud-init '{abs_path}' lỗi schema:\n{result.stderr.strip()}"
+            return f"Schema error in cloud-init '{path}':\n{result.stderr.strip()}"
     except Exception as e:
-        return f"Lỗi khi kiểm tra cloud-init '{abs_path}': {str(e)}"
+        return f"Error validating cloud-init file '{path}': {str(e)}"
     return None
 
-
-
+# Validate the entire topology.json
 def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[str]]:
-    """
-    Kiểm tra hợp lệ file topology.json.
-    Trả về (True, []) nếu hợp lệ; (False, [danh sách lỗi]) nếu có lỗi.
-    """
     errors = []
 
-    # 1. Kiểm tra file tồn tại và đọc được
+    # Step 1: Load JSON file
     try:
         with open(file_path, 'r') as f:
             data = json.load(f)
     except FileNotFoundError:
-        return False, ["File topology.json không tồn tại"]
+        return False, ["File 'topology.json' not found"]
     except json.JSONDecodeError as e:
-        return False, [f"Lỗi cú pháp JSON: {str(e)}"]
+        return False, [f"JSON syntax error: {str(e)}"]
 
-    # 2. Kiểm tra schema tổng thể
+    # Step 2: Validate schema
     try:
         validate(instance=data, schema=TOPOLOGY_SCHEMA)
     except ValidationError as e:
-        errors.append(f"Lỗi schema: {e.message} tại {e.json_path}")
+        errors.append(f"Schema error: {e.message} at {e.json_path}")
 
-    # 3. Tạo dict tra cứu thông tin network theo tên
+    # Step 3: Collect network definitions and track used IPs
     network_info = {net["name"]: net for net in data.get("networks", [])}
-    used_ips = {}  # Dùng để kiểm tra trùng IP trên từng network
+    used_ips = {}
 
-    # 4. Kiểm tra từng instance
+    # Step 4: Validate instances
     for instance in data.get("instances", []):
-        # Kiểm tra từng network trong instance
         for net in instance.get("networks", []):
             net_name = net["name"]
             ip = net["ip"]
 
-            # Kiểm tra network tồn tại
             if net_name not in network_info:
-                errors.append(f"Instance {instance['name']}: Network '{net_name}' không tồn tại")
+                errors.append(f"Instance '{instance['name']}': Network '{net_name}' does not exist")
                 continue
 
-            # Kiểm tra IP hợp lệ
             if not validate_ip(ip):
-                errors.append(f"Instance {instance['name']}: IP '{ip}' không hợp lệ")
+                errors.append(f"Instance '{instance['name']}': IP '{ip}' is invalid")
                 continue
 
-            # Kiểm tra IP thuộc dải CIDR
             cidr = network_info[net_name]["cidr"]
             if not check_ip_in_cidr(ip, cidr):
-                errors.append(f"Instance {instance['name']}: IP '{ip}' không thuộc dải mạng '{cidr}'")
+                errors.append(f"Instance '{instance['name']}': IP '{ip}' is outside CIDR '{cidr}'")
 
-            # Kiểm tra trùng IP trong cùng network
             if net_name not in used_ips:
                 used_ips[net_name] = set()
             if ip in used_ips[net_name]:
-                errors.append(f"Instance {instance['name']}: IP '{ip}' trùng lặp trong network '{net_name}'")
+                errors.append(f"Instance '{instance['name']}': IP '{ip}' is duplicated in network '{net_name}'")
             used_ips[net_name].add(ip)
 
-        # Kiểm tra file cloud_init nếu có
+        # Validate cloud-init if provided
         cloud_init_file = instance.get("cloud_init")
         if cloud_init_file:
             err = validate_cloud_init_file(cloud_init_file, provider)
             if err:
-                errors.append(f"Instance {instance['name']}: {err}")
-
-    # 5. Kiểm tra network (gateway IP)
+                errors.append(f"Instance '{instance['name']}': {err}")
+        # Validate floating IP if provided
+        floating_ip = instance.get("floating_ip", None)
+        if floating_ip is not None:
+            if isinstance(floating_ip, str):
+                if not validate_ip(floating_ip):
+                    errors.append(f"Instance '{instance['name']}': floating_ip '{floating_ip}' is not a valid IP address")
+            elif not isinstance(floating_ip, bool):
+                errors.append(f"Instance '{instance['name']}': floating_ip must be an IP address (string) or true/false (boolean)")
+    # Step 5: Validate gateway IPs in networks
     for net_name, network in network_info.items():
         gw_ip = network["gateway_ip"]
         if not validate_ip(gw_ip):
-            errors.append(f"Network {net_name}: Gateway IP '{gw_ip}' không hợp lệ")
+            errors.append(f"Network '{net_name}': Gateway IP '{gw_ip}' is invalid")
         elif not check_ip_in_cidr(gw_ip, network["cidr"]):
-            errors.append(f"Network {net_name}: Gateway IP '{gw_ip}' không thuộc dải mạng")
+            errors.append(f"Network '{net_name}': Gateway IP '{gw_ip}' is outside CIDR")
 
-    # 6. Kiểm tra router
+    # Step 6: Validate routers
     for router in data.get("routers", []):
         for net in router.get("networks", []):
             net_name = net["name"]
             ip = net["ip"]
 
-            # Kiểm tra network tồn tại
             if net_name not in network_info:
-                errors.append(f"Router {router['name']}: Network '{net_name}' không tồn tại")
+                errors.append(f"Router '{router['name']}': Network '{net_name}' does not exist")
                 continue
 
-            # Kiểm tra IP hợp lệ
             if not validate_ip(ip):
-                errors.append(f"Router {router['name']}: IP '{ip}' không hợp lệ")
+                errors.append(f"Router '{router['name']}': IP '{ip}' is invalid")
                 continue
 
-            # Kiểm tra IP trùng với gateway IP
             if ip != network_info[net_name]["gateway_ip"]:
-                errors.append(f"Router {router['name']}: IP '{ip}' phải trùng gateway IP của network '{net_name}'")
+                errors.append(f"Router '{router['name']}': IP '{ip}' must match the gateway IP of network '{net_name}'")
 
-            # Kiểm tra IP trùng với IP đã dùng trong network
             if net_name in used_ips and ip in used_ips[net_name]:
-                errors.append(f"Router {router['name']}: IP '{ip}' trùng với IP đã sử dụng trong network '{net_name}'")
+                errors.append(f"Router '{router['name']}': IP '{ip}' is already used in network '{net_name}'")
 
-    # Trả về kết quả kiểm tra
     return (len(errors) == 0, errors)
