@@ -4,12 +4,140 @@ A framework that automatically generates and applies Terraform configurations fo
 [![AWS](https://img.shields.io/badge/AWS-SSO-orange.svg)](https://aws.amazon.com/single-sign-on/)
 [![OpenStack](https://img.shields.io/badge/OpenStack-Terraform-blueviolet.svg)](https://www.openstack.org/)
 # Features
-- Supports multi-cloud infrastructure: AWS & OpenStack
-- Automatically generates `.tf` files based on a JSON topology
+
+- **Supports multi-cloud infrastructure: AWS & OpenStack**
+- **Automatically generates `.tf` files based on a JSON topology**
+- **Cloud-init support for bootstrapping VMs**
 - CLI tool for quick deployment
 - Web UI (React + FastAPI) for managing environments
-- Cloud-init support for bootstrapping VMs
 - Bastion host, security groups, floating IP, private/public subnet logic
+
+## Support Resource
+
+### AWS
+- **aws_instance**: Tạo máy chủ ảo EC2, bao gồm cả bastion host (điểm truy cập trung gian).
+ - **userdata (cloud-init script)**: Script khởi tạo máy ảo tự động khi boot, dùng để cài đặt phần mềm, cấu hình hệ thống ban đầu.
+- **aws_vpc**: Vùng mạng ảo riêng cho toàn bộ hạ tầng.
+- **aws_subnet**: Các mạng con (public/private) trong VPC.
+- **aws_security_group**: Nhóm bảo mật, kiểm soát lưu lượng vào/ra các instance.
+- **aws_key_pair**: Cặp khóa SSH để truy cập bảo mật vào EC2.
+- **aws_route_table & aws_route_table_association**: Bảng định tuyến và liên kết với subnet.
+- **aws_internet_gateway**: Kết nối VPC với internet.
+- **aws_nat_gateway**: Cho phép subnet private truy cập internet an toàn.
+- **aws_eip**: Địa chỉ IP tĩnh công khai cho các instance cần truy cập từ ngoài.
+
+
+### OpenStack
+- **openstack_compute_instance (Nova)**: Máy chủ ảo, thực hiện tác vụ tính toán, có thể gán floating IP và keypair.
+ - **userdata (cloud-init script)**: Script khởi tạo máy ảo tự động khi boot, dùng để cài đặt phần mềm, cấu hình hệ thống ban đầu.
+- **openstack_networking_network & openstack_networking_subnet (Neutron)**: Tạo mạng ảo và subnet, phân chia hệ thống thành các vùng mạng độc lập.
+- **openstack_networking_router & openstack_networking_router_interface**: Bộ định tuyến ảo, kết nối các subnet và định tuyến lưu lượng ra/vào hệ thống.
+- **openstack_networking_floatingip**: Cấp phát và ánh xạ IP công khai cho VM hoặc router, hỗ trợ truy cập từ ngoài.
+- **openstack_compute_keypair**: Cặp khóa SSH để xác thực truy cập từ xa vào VM.
+- **openstack_networking_secgroup & openstack_networking_secgroup_rule**: Nhóm bảo mật và rule, kiểm soát truy cập dựa trên giao thức, cổng, IP.
+### 
+
+## System Architecture
+
+![System Architecture](https://i.postimg.cc/QCmH7LDT/KIentruc.png)
+## Workflow
+
+<p align="center">
+  <img src="https://i.postimg.cc/fytrtsmH/luonghoatodong.png" alt="Workflow"/>
+</p>
+
+## Sample JSON File
+
+Example content of `topology.json`:
+
+```json
+{
+  "instances": [
+    {
+      "name": "vm1",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "cloud_init": "cloud-init.yaml",
+      "networks": [
+        {
+          "name": "net1",
+          "ip": "192.168.1.10"
+        }
+      ],
+      "keypair": "toanndcloud-keypair",  
+      "security_groups": ["default"],
+      "floating_ip": true
+    }
+      ,
+    {
+      "name": "s2",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "cloud_init": "cloud-init.yaml",
+      "networks": [
+        {
+          "name": "net2",
+          "ip": "192.168.2.10"
+        }
+      ]
+    }
+  ],
+  "networks": [
+    {
+      "name": "net2",
+      "cidr": "192.168.2.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.2.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "net1",
+      "cidr": "192.168.1.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.1.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "net3",
+      "cidr": "192.168.3.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.3.1",
+      "enable_dhcp": true
+    }
+  ],
+  "routers": [
+    {
+      "name": "R1",
+      "networks": [
+        {
+          "name": "net2",
+          "ip": "192.168.2.1"
+        },
+        {
+          "name": "net1",
+          "ip": "192.168.1.1"
+        },
+        {
+          "name": "net3",
+          "ip": "192.168.3.1"
+        }
+      ],
+      "external": true,
+      "routes": []
+    }
+  ]
+}
+```
+
+## Result
+
+<p align="center">
+  <img src="https://i.postimg.cc/PJTMhkKp/Screenshot-2025-08-22-161416.png" alt="Result"/>
+</p>
 
 ## CLI Usage 
 ### Prerequisites
