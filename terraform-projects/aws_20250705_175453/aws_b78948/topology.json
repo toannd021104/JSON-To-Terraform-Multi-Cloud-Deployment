@@ -1,0 +1,81 @@
+{
+  "instances": [
+    {
+      "name": "vm1_b78948",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "cloud_init": "cloud-init.yaml",
+      "networks": [
+        {
+          "name": "net1_b78948",
+          "ip": "192.168.1.10"
+        }
+      ],
+      "keypair": "toanndcloud-keypair",
+      "security_groups": [
+        "allow-all-sg"
+      ],
+      "floating_ip": true
+    },
+    {
+      "name": "s2_b78948",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "cloud_init": "cloud-init.yaml",
+      "networks": [
+        {
+          "name": "net2_b78948",
+          "ip": "192.168.2.10"
+        }
+      ]
+    }
+  ],
+  "networks": [
+    {
+      "name": "net2_b78948",
+      "cidr": "192.168.2.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.2.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "net1_b78948",
+      "cidr": "192.168.1.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.1.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "net3_b78948",
+      "cidr": "192.168.3.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.3.1",
+      "enable_dhcp": true
+    }
+  ],
+  "routers": [
+    {
+      "name": "R1_b78948",
+      "networks": [
+        {
+          "name": "net2_b78948",
+          "ip": "192.168.2.1"
+        },
+        {
+          "name": "net1_b78948",
+          "ip": "192.168.1.1"
+        },
+        {
+          "name": "net3_b78948",
+          "ip": "192.168.3.1"
+        }
+      ],
+      "external": true,
+      "routes": []
+    }
+  ]
+}

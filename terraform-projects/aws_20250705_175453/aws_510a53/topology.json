@@ -1,0 +1,81 @@
+{
+  "instances": [
+    {
+      "name": "vm1_510a53",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "cloud_init": "cloud-init.yaml",
+      "networks": [
+        {
+          "name": "net1_510a53",
+          "ip": "192.168.1.10"
+        }
+      ],
+      "keypair": "toanndcloud-keypair",
+      "security_groups": [
+        "allow-all-sg"
+      ],
+      "floating_ip": true
+    },
+    {
+      "name": "s2_510a53",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "cloud_init": "cloud-init.yaml",
+      "networks": [
+        {
+          "name": "net2_510a53",
+          "ip": "192.168.2.10"
+        }
+      ]
+    }
+  ],
+  "networks": [
+    {
+      "name": "net2_510a53",
+      "cidr": "192.168.2.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.2.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "net1_510a53",
+      "cidr": "192.168.1.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.1.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "net3_510a53",
+      "cidr": "192.168.3.0/24",
+      "pool": [],
+      "gateway_ip": "192.168.3.1",
+      "enable_dhcp": true
+    }
+  ],
+  "routers": [
+    {
+      "name": "R1_510a53",
+      "networks": [
+        {
+          "name": "net2_510a53",
+          "ip": "192.168.2.1"
+        },
+        {
+          "name": "net1_510a53",
+          "ip": "192.168.1.1"
+        },
+        {
+          "name": "net3_510a53",
+          "ip": "192.168.3.1"
+        }
+      ],
+      "external": true,
+      "routes": []
+    }
+  ]
+}
