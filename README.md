@@ -1,54 +1,70 @@
-# Automated Terraform Code Generation Framework
-A framework that automatically generates and applies Terraform configurations for AWS and OpenStack based on a simple JSON topology description.
+# 🌩️ JSON-To-Terraform Multi-Cloud Deployment
 
-[![AWS](https://img.shields.io/badge/AWS-SSO-orange.svg)](https://aws.amazon.com/single-sign-on/)
-[![OpenStack](https://img.shields.io/badge/OpenStack-Terraform-blueviolet.svg)](https://www.openstack.org/)
-# Features
+> 🚀 A framework that automatically **generates and deploys Terraform configurations** on **AWS** and **OpenStack** from a single **JSON topology file**, with built-in **Cloud-Init**, **CLI**, and **Web UI (React + FastAPI)**.
 
-- **Supports multi-cloud infrastructure: AWS & OpenStack**
-- **Automatically generates `.tf` files based on a JSON topology**
-- **Cloud-init support for bootstrapping VMs**
-- CLI tool for quick deployment
-- Web UI (React + FastAPI) for managing environments
-- Bastion host, security groups, floating IP, private/public subnet logic
+[![AWS](https://img.shields.io/badge/AWS-Supported-orange.svg)](https://aws.amazon.com/)
+[![OpenStack](https://img.shields.io/badge/OpenStack-Supported-blueviolet.svg)](https://www.openstack.org/)
+[![Terraform](https://img.shields.io/badge/Terraform-Automated-success.svg)](https://www.terraform.io/)
 
-## Support Resource
+---
 
-### AWS
-- **aws_instance**: Tạo máy chủ ảo EC2, bao gồm cả bastion host (điểm truy cập trung gian).
- - **userdata (cloud-init script)**: Script khởi tạo máy ảo tự động khi boot, dùng để cài đặt phần mềm, cấu hình hệ thống ban đầu.
-- **aws_vpc**: Vùng mạng ảo riêng cho toàn bộ hạ tầng.
-- **aws_subnet**: Các mạng con (public/private) trong VPC.
-- **aws_security_group**: Nhóm bảo mật, kiểm soát lưu lượng vào/ra các instance.
-- **aws_key_pair**: Cặp khóa SSH để truy cập bảo mật vào EC2.
-- **aws_route_table & aws_route_table_association**: Bảng định tuyến và liên kết với subnet.
-- **aws_internet_gateway**: Kết nối VPC với internet.
-- **aws_nat_gateway**: Cho phép subnet private truy cập internet an toàn.
-- **aws_eip**: Địa chỉ IP tĩnh công khai cho các instance cần truy cập từ ngoài.
+### 🧩 Situation
+In multi-cloud environments, engineers often need to provision the **same infrastructure on both AWS and OpenStack**.  
+Manually writing `.tf` files is slow, error-prone, and hard to reuse when deploying multiple environments.
 
+---
 
-### OpenStack
-- **openstack_compute_instance (Nova)**: Máy chủ ảo, thực hiện tác vụ tính toán, có thể gán floating IP và keypair.
- - **userdata (cloud-init script)**: Script khởi tạo máy ảo tự động khi boot, dùng để cài đặt phần mềm, cấu hình hệ thống ban đầu.
-- **openstack_networking_network & openstack_networking_subnet (Neutron)**: Tạo mạng ảo và subnet, phân chia hệ thống thành các vùng mạng độc lập.
-- **openstack_networking_router & openstack_networking_router_interface**: Bộ định tuyến ảo, kết nối các subnet và định tuyến lưu lượng ra/vào hệ thống.
-- **openstack_networking_floatingip**: Cấp phát và ánh xạ IP công khai cho VM hoặc router, hỗ trợ truy cập từ ngoài.
-- **openstack_compute_keypair**: Cặp khóa SSH để xác thực truy cập từ xa vào VM.
-- **openstack_networking_secgroup & openstack_networking_secgroup_rule**: Nhóm bảo mật và rule, kiểm soát truy cập dựa trên giao thức, cổng, IP.
-### 
+### 🎯 Task
+Design a framework that can:
+- Convert a **single JSON topology** into valid **Terraform configurations**
+- Support **multi-cloud (AWS & OpenStack)** deployments
+- Use **Cloud-Init** to bootstrap VMs automatically
+- Offer both **CLI** and **Web UI** to manage infrastructure deployments
 
-## System Architecture
+---
 
-![System Architecture](https://i.postimg.cc/QCmH7LDT/KIentruc.png)
-## Workflow
+### ⚡ Action
+- Developed Python modules to parse JSON topology and generate `.tf` code
+- Implemented CLI tool to generate & apply Terraform configs automatically
+- Built a Web UI using **React + FastAPI**, with Docker Compose for deployment
+- Integrated **Cloud-Init** scripts to bootstrap VMs with initial setup
+- Designed reusable modules for:
+  - **AWS**: `aws_instance`, `aws_vpc`, `aws_subnet`, `aws_security_group`, `aws_nat_gateway`, `aws_internet_gateway`, `aws_eip`, `aws_key_pair`, `aws_route_table`...
+  - **OpenStack**: `openstack_compute_instance`, `openstack_networking_network`, `openstack_networking_subnet`, `openstack_networking_router`, `openstack_networking_floatingip`, `openstack_compute_keypair`, `openstack_networking_secgroup`...
+---
+
+### 🏆 Result
+- Reduced provisioning time from **hours to a few minutes** per environment
+- Enabled **one-click deployments** of complex topologies on AWS/OpenStack
+- Eliminated human errors in `.tf` configuration by generating it automatically
+- Easily replicated environments (e.g. create 3 identical clusters with one command)
+- Provided a clear architecture and workflow, helping others onboard faster
+
+---
+
+## 🏗️ System Architecture
 
 <p align="center">
-  <img src="https://i.postimg.cc/fytrtsmH/luonghoatodong.png" alt="Workflow"/>
+  <img src="https://i.postimg.cc/QCmH7LDT/KIentruc.png" alt="Architecture" width="720"/>
 </p>
 
-## Sample JSON File
+---
 
-Example content of `topology.json`:
+## ⚙️ Workflow
+
+<p align="center">
+  <img src="https://i.postimg.cc/fytrtsmH/luonghoatodong.png" alt="Workflow" width="720"/>
+</p>
+
+1. User defines `topology.json`
+2. CLI triggers the generator
+3. Terraform `.tf` files are created for target cloud
+4. Terraform applies infrastructure
+5. Cloud-Init scripts configure instances automatically
+
+---
+
+## 📄 Sample `topology.json`
 
 ```json
 {
@@ -60,204 +76,73 @@ Example content of `topology.json`:
       "ram": 4,
       "disk": 20,
       "cloud_init": "cloud-init.yaml",
-      "networks": [
-        {
-          "name": "net1",
-          "ip": "192.168.1.10"
-        }
-      ],
-      "keypair": "toanndcloud-keypair",  
+      "networks": [{ "name": "net1", "ip": "192.168.1.10" }],
+      "keypair": "toanndcloud-keypair",
       "security_groups": ["default"],
       "floating_ip": true
-    }
-      ,
-    {
-      "name": "s2",
-      "image": "ubuntu-jammy",
-      "cpu": 2,
-      "ram": 4,
-      "disk": 20,
-      "cloud_init": "cloud-init.yaml",
-      "networks": [
-        {
-          "name": "net2",
-          "ip": "192.168.2.10"
-        }
-      ]
     }
   ],
   "networks": [
     {
-      "name": "net2",
-      "cidr": "192.168.2.0/24",
-      "pool": [],
-      "gateway_ip": "192.168.2.1",
-      "enable_dhcp": true
-    },
-    {
       "name": "net1",
       "cidr": "192.168.1.0/24",
-      "pool": [],
       "gateway_ip": "192.168.1.1",
-      "enable_dhcp": true
-    },
-    {
-      "name": "net3",
-      "cidr": "192.168.3.0/24",
-      "pool": [],
-      "gateway_ip": "192.168.3.1",
       "enable_dhcp": true
     }
   ],
   "routers": [
     {
       "name": "R1",
-      "networks": [
-        {
-          "name": "net2",
-          "ip": "192.168.2.1"
-        },
-        {
-          "name": "net1",
-          "ip": "192.168.1.1"
-        },
-        {
-          "name": "net3",
-          "ip": "192.168.3.1"
-        }
-      ],
-      "external": true,
-      "routes": []
+      "networks": [{ "name": "net1", "ip": "192.168.1.1" }],
+      "external": true
     }
   ]
 }
 ```
-
-## Result
-
+## 🖥️ Result Example
 <p align="center">
-  <img src="https://i.postimg.cc/PJTMhkKp/Screenshot-2025-08-22-161416.png" alt="Result"/>
+  <img src="https://i.postimg.cc/PJTMhkKp/Screenshot-2025-08-22-161416.png" alt="Result" width="720"/>
 </p>
 
-## CLI Usage 
-### Prerequisites
+---
 
-- Python 3 and pip
-  
-```bash
-sudo apt update
-sudo apt install python3 python3-pip -y
-  ```
+## 🧪 CLI Usage
 
-- Terraform CLI
+### 📌 Prerequisites
+
 ```bash
+sudo apt update && sudo apt install python3 python3-pip unzip -y
 wget https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-unzip terraform_1.6.6_linux_amd64.zip
-sudo mv terraform /usr/local/bin/
-  ```
-- AWS CLI
-```bash
-pip install awscli
-  ```
-- OpenStack CLI
-```bash
-pip install python-openstackclient
-  ``` 
-### For infrastructure management with Terraform and OpenStack:
+unzip terraform_1.6.6_linux_amd64.zip && sudo mv terraform /usr/local/bin/
+pip install awscli python-openstackclient
+```
+### 📝 Prepare Credentials
 
-1. Create a `*.tfvars` file containing login information in:
-   ```
-   /terraform-generator/openstack/
-   ```
+Create a file named `terraform-generator/openstack/credentials.tfvars`:
 
-2. This file should contain information such as:
-   ```hcl
-    openstack_auth_url     = 
-    openstack_region       = 
-    openstack_tenant_name  = 
-    openstack_user_name    = 
-    openstack_password     = 
-    external_network_id    = 
-   ```
-
-### Using Generator
-Create a file named topology.json and place it inside the root folder of the project (terraform-generator/).
-
-Once topology.json is ready, use the following command to generate and deploy infrastructure automatically:
-```bash
-python3 generate.py [openstack|aws] Number of copy
+```hcl
+openstack_auth_url     = ""
+openstack_region       = ""
+openstack_tenant_name  = ""
+openstack_user_name    = ""
+openstack_password     = ""
+external_network_id    = ""
 ```
 
-## UI Usage 
-### Prerequisites
-- Docker and Docker Compose 
-[Download Guide](https://docs.docker.com/engine/install/ubuntu/)
-- Node.js and npm
-[Download Guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+### 💻 CLI Command
+python3 generate.py [openstack|aws] <number_of_copies>
 
-### AWS SSO Configuration
+## 🌐 Web UI Usage
+### 📌 Prerequisites
+Docker & Docker Compose
+Node.js & npm
 
-AWS SSO is used to access resources from containers in this project.
-
-#### Step 1: Configure AWS SSO
-
-Configure AWS SSO with a profile named "my-sso":
-
+### 🔐 AWS SSO Setup
 ```bash
 aws configure sso --profile my-sso
-```
-
-This will prompt you to enter:
-- SSO start URL
-- SSO Region
-- Default CLI Region
-- Default output format
-- Permission set
-
-#### Step 2: Login to AWS SSO
-
-Authenticate using the configured profile:
-
-```bash
 aws sso login --profile my-sso
 ```
-
-A browser window will open automatically to complete the authentication process.
-
-### Backend Services
-
-#### Step 3: Run Backend Services
-
-After successfully logging in to AWS SSO, run the backend services:
-
+### 🖥️ Run Backend & Frontend
 ```bash
 docker compose up --build
-```
-
-This command will:
-- Build the Docker images if they don't exist
-- Create and start containers for all services defined in the docker-compose.yml file
-- Display container logs in the terminal
-
-The containers will use your AWS SSO credentials to access the necessary AWS resources.
-
-
-
-
-### Frontend Application
-
-#### Step 4: Run Frontend
-
-To run the frontend application:
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Start the development server:
-   ```bash
-   npm start
-   ```
-
-The frontend application will start and connect to the backend services.
+cd frontend && npm start
