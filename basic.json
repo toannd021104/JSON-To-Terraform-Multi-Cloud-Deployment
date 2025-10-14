@@ -1,0 +1,280 @@
+{
+  "cloud-config": {
+    "init_stage": {
+      "bootcmd": [
+        ["mkdir","-p","/run/early-setup"],
+        ["sh","-c","echo 'bootcmd started at $(date)' >> /var/log/cloud-init.log"],
+        ["cloud-init-per","once","mymkfs","mkfs","/dev/vdb"]
+      ],
+      "files": [
+        {
+          "path": "/opt/test",
+          "type": "file",
+          "content": "Original file!",
+          "owner": "root:root",
+          "mode": "0644",
+          "backup": true
+        },
+        {
+          "path": "/opt/test-dir",
+          "type": "dir",
+          "owner": "root:root",
+          "mode": "0755"
+        },
+        {
+          "path": "/opt/test-symlink",
+          "type": "link",
+          "target": "/opt/test",
+          "owner": "root:root",
+          "mode": "0755"
+        },
+        {
+          "path": "/opt/test-source",
+          "type": "file",
+          "source": "https://raw.githubusercontent.com/canonical/cloud-init/main/doc/examples/cloud-config.txt",
+          "target": "/opt/test",
+          "owner": "root:root",
+          "mode": "0755"
+        }
+      ],
+      "growpart": {
+        "mode": "auto",
+        "devices": ["/"],
+        "ignore_growroot_disabled": true
+      },
+      "resize_rootfs": true,
+      "device_aliases": {
+        "my_alias": "/dev/sdb",
+        "swap_disk": "/dev/sdc"
+      },
+      "disk_setup": {
+        "/dev/sdd": {
+          "layout": true,
+          "overwrite": true,
+          "table_type": "mbr"
+        },
+        "my_alias": {
+          "layout": [50,50],
+          "overwrite": true,
+          "table_type": "gpt"
+        },
+        "swap_disk": {
+          "layout": [[100,82]],
+          "overwrite": true,
+          "table_type": "gpt"
+        }
+      },
+      "fs_setup": [
+        {
+          "cmd": "mkfs -t %(filesystem)s -L %(label)s %(device)s",
+          "device": "my_alias.1",
+          "filesystem": "ext4",
+          "label": "fs1"
+        },
+        {
+          "device": "my_alias.2",
+          "filesystem": "ext4",
+          "label": "fs2"
+        },
+        {
+          "device": "swap_disk.1",
+          "filesystem": "swap",
+          "label": "swap"
+        },
+        {
+          "device": "/dev/sdd1",
+          "filesystem": "ext4",
+          "label": "fs3"
+        }
+      ],
+      "mounts": [
+        ["my_alias.1","/mnt1"],
+        ["my_alias.2","/mnt2"],
+        ["swap_disk.1","none","swap","sw","0","0"],
+        ["/dev/sdd1","/mnt3"]
+      ],
+      "mount_default_fields": [null,null,"auto","defaults,nofail","0","2"],
+      "swap": {
+        "filename": "/swapfile",
+        "size": "1G",
+        "maxsize": "2G"
+      },
+      "set_hostname": {
+        "hostname": "myhost",
+        "create_hostname_file": true,
+        "fqdn": "myhost.example.com",
+        "prefer_fqdn_over_hostname": true
+      },
+      "manage_etc_hosts": false,
+      "ca_certs": {
+        "remove_defaults": true,
+        "trusted": [
+          "single_line_cert",
+          "-----BEGIN CERTIFICATE-----\nYOUR-ORGS-TRUSTED-CA-CERT-HERE\n-----END CERTIFICATE-----"
+        ]
+      },
+      "groups": ["devops","monitoring"],
+      "users": [
+        "default",
+        {
+          "name": "name",
+          "gecos": "Full name",
+          "primary_group": "devops",
+          "groups": ["sudo"],
+          "shell": "/bin/bash",
+          "uid": 1111,
+          "system": false,
+          "lock_passwd": false,
+          "expiredate": "2025-12-31",
+          "create_groups": true,
+          "hashed_passwd": "$6$mysalt$C2O1HgkslYklbzzdQz....",
+          "plain_passwd": "plain_text_password",
+          "ssh_authorized_keys": [
+            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC..."
+          ],
+          "sudo": "ALL=(ALL) NOPASSWD:ALL"
+        },
+        {
+          "name": "prometheus",
+          "gecos": "System monitoring user",
+          "primary_group": "monitoring",
+          "system": true,
+          "no_create_home": true,
+          "no_user_group": true,
+          "shell": "/usr/sbin/nologin",
+          "lock_passwd": true
+        }
+      ],
+      "ssh_config": {
+        "ssh_deletekeys": true,
+        "ssh_genkeytypes": ["ed25519","rsa"],
+        "ssh_quiet_keygen": true,
+        "ssh_publish_hostkeys": {
+          "enabled": true,
+          "blacklist": ["rsa"]
+        },
+        "allow_public_ssh_keys": true,
+        "disable_root": true,
+        "disable_root_opts": "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo Please login as the user \\\"$USER\\\" rather than \\\"$DISABLE_USER\\\";sleep 5;exit 142\""
+      }
+    },
+    "config-stage": {
+      "locale": "en_US.UTF-8",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "apt": {
+        "preserve_sources_list": true,
+        "disable_suites": ["proposed"],
+        "primary": [
+          {
+            "arches": ["default"],
+            "uri": "http://archive.ubuntu.com/ubuntu"
+          }
+        ],
+        "security": [
+          {
+            "arches": ["default"],
+            "uri": "http://security.ubuntu.com/ubuntu"
+          }
+        ],
+        "http_proxy": "http://proxy.example.com:3128",
+        "https_proxy": "http://proxy.example.com:3128",
+        "debconf_selections": {
+          "mysql-server": "mysql-server mysql-server/root_password password root123\nmysql-server mysql-server/root_password_again password root123\n"
+        },
+        "sources": {
+          "docker": {
+            "source": "deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable",
+            "keyid": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88",
+            "keyserver": "keyserver.ubuntu.com"
+          },
+          "kubernetes": {
+            "source": "deb https://apt.kubernetes.io/ kubernetes-xenial main",
+            "keyid": "BA07F4FB",
+            "keyserver": "keyserver.ubuntu.com"
+          }
+        },
+        "conf": "Acquire::Retries \"3\";\nAcquire::http::Timeout \"10\";\nAPT::Install-Recommends \"false\";\n"
+      },
+      "ntp": {
+        "enabled": true,
+        "ntp_client": "chrony",
+        "pools": ["0.pool.ntp.org","1.pool.ntp.org","2.pool.ntp.org","3.pool.ntp.org"],
+        "allow": ["10.0.0.0/8","192.168.0.0/16"],
+        "config": {
+          "confpath": "/etc/chrony/chrony.conf",
+          "check_exe": "chronyd",
+          "packages": ["chrony"],
+          "service_name": "chronyd"
+        }
+      },
+      "exec": [
+      {
+        "command": "./install.sh",
+        "creates": "/opt/myapp/installed.flag",
+        "cwd": "/opt/myapp",
+        "environment": [
+          "APP_ENV=production",
+          "PATH=/usr/local/bin:/usr/bin"
+        ],
+        "onlyif": "test -d /opt/myapp",
+        "unless": "test -f /opt/myapp/installed.flag",
+        "timeout": 60,
+        "tries": 3,
+        "try_sleep": 5,
+        "umask": "0022",
+        "user": "ubuntu"
+      },
+      {
+        "command": "ls -ls"
+      }
+      ],
+      "service": [
+        {
+          "name": "nginx",
+          "ensure": "running",
+          "flags": "--now",
+          "timeout": 30
+        },
+        {
+          "name": "apache2",
+          "ensure": "stopped",
+          "flags": "",
+          "timeout": 15
+        },
+        {
+          "name": "mysql",
+          "ensure": "restarted",
+          "flags": "--quiet",
+          "timeout": 45
+        }
+      ]
+    },
+    "final-stage": {
+      "packages": [
+        {
+          "name": "nginx",
+          "ensure": "latest",
+          "install_options": ["--no-install-recommends","--allow-downgrades","-y"],
+          "configfiles": "keep",
+          "mark": "hold",
+          "source": "http://nginx.org/packages/ubuntu",
+          "adminfile": "/tmp/nginx-admin.conf"
+        },
+        {
+          "name": "apache2",
+          "ensure": "absent",
+          "uninstall_options": ["--purge","--auto-remove","-y"],
+          "configfiles": "replace"
+        }
+      ],
+      "final_message": "cloud-init has finished\nversion: $version\ntimestamp: $timestamp\ndatasource: $datasource\nuptime: $uptime",
+      "power_state": {
+        "delay": 1,
+        "mode": "poweroff",
+        "message": "Build complete — powering off",
+        "timeout": 60,
+        "condition": true
+      }
+    }
+  }
+}
