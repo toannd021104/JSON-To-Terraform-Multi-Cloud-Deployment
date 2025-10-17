@@ -175,7 +175,7 @@ USER_DATA_SCHEMA = {
                     "shell": {
                         "type": ["string","null"],
                         "default": "",
-                        "pattern": "^[a-z_][a-z0-9_-]*$"
+                        "pattern": "^/[^\\s]*$"
                     },
                     "uid": {
                         "type": ["integer","null"],
@@ -635,7 +635,7 @@ USER_DATA_SCHEMA = {
         "required": ["filename", "size", "maxsize"],
         "additionalProperties": False,
         "properties": {
-          "filename": { "type": "string", "pattern": "^[a-z_][a-z0-9_-]*$" },
+          "filename": { "type": "string", "pattern": "^/[^\\s]*$"  },
           "size": { "type": "string", "pattern": "^[0-9]+[KMG]$" },
           "maxsize": { "type": "string", "pattern": "^[0-9]+[KMG]$" }
         }
