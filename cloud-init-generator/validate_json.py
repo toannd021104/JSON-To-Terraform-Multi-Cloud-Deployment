@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator, exceptions as js_exceptions
 # Schema bạn đưa (dùng dạng dict Python, vì bạn viết True/False)
 USER_DATA_SCHEMA = {
     "type": "object",
-    "required": ["files", "groups", "users"],
+    "required": [],
     "additionalProperties": False,
     "properties": {
         "files": {
@@ -780,26 +780,31 @@ def collect_errors(instance) -> List[js_exceptions.ValidationError]:
     errors = sorted(validator.iter_errors(instance), key=lambda e: (list(e.absolute_path), e.message))
     return errors
 
-def main():
-    parser = argparse.ArgumentParser(description="Validate a JSON file against USER_DATA_SCHEMA.")
-    parser.add_argument("json_path", help="Path to JSON file to validate")
-    args = parser.parse_args()
-
+def validate(json_path: str) -> bool:
+    """
+    Validate a JSON file against USER_DATA_SCHEMA.
+    
+    Args:
+        json_path: Path to JSON file to validate
+        
+    Returns:
+        True if valid, False otherwise
+    """
     try:
-        with open(args.json_path, "r", encoding="utf-8") as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"Error: file not found: {args.json_path}", file=sys.stderr)
-        sys.exit(2)
+        print(f"Error: file not found: {json_path}", file=sys.stderr)
+        return False
     except json.JSONDecodeError as e:
         print(f"Error: invalid JSON syntax at line {e.lineno}, col {e.colno}: {e.msg}", file=sys.stderr)
-        sys.exit(2)
+        return False
 
     errors = collect_errors(data)
 
     if not errors:
         print("✅ Valid JSON: conforms to USER_DATA_SCHEMA.")
-        sys.exit(0)
+        return True
 
     print(f"❌ Found {len(errors)} validation error(s):")
     for i, err in enumerate(errors, 1):
@@ -807,14 +812,18 @@ def main():
         print(f"\n[{i}] At: {path}")
         print(f"    Message: {err.message}")
 
-        # Nếu có 'context' (các nhánh anyOf/oneOf/if/then), in ngắn gọn thêm
         if err.context:
-            # Lấy vài thông điệp con ngắn gọn
             sub_msgs = sorted({c.message for c in err.context})
             for sm in sub_msgs[:5]:
                 print(f"    Hint: {sm}")
 
-    sys.exit(1)
+    return False
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Validate a JSON file against USER_DATA_SCHEMA.")
+    parser.add_argument("json_path", help="Path to JSON file to validate")
+    args = parser.parse_args()
+    
+    is_valid = validate(args.json_path)
+    sys.exit(0 if is_valid else 1)
