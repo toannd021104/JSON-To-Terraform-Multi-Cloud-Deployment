@@ -7,17 +7,16 @@
   "users": [
     "default",
     {
-      "name": "wuoc",
-      "gecos": "Wuoc DevOps Student",
+      "name": "user",
+      "gecos": "DevOps Student",
       "primary_group": "devops",
-      "groups": ["sudo"],
       "shell": "/bin/bash",
       "uid": 1111,
       "system": false,
       "lock_passwd": false,
       "expiredate": "2025-12-31",
       "create_groups": true,
-      "hashed_passwd": "$6$mysalt$C2O1HgkslYklbzzdQz....",
+      "plain_passwd": "plain_password",
       "ssh_authorized_keys": [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeBase64HereOnlyAsExample comment"
       ],
@@ -27,10 +26,9 @@
       "name": "prometheus",
       "gecos": "System monitoring user",
       "primary_group": "monitoring",
-      "system": true,
+      "system": false,
       "no_create_home": true,
-      "no_user_group": true,
-      "shell": "/usr/sbin/nologin",
+      "shell": "/usr/false",
       "plain_passwd": "prometheus",
       "lock_passwd": false
     }
@@ -121,9 +119,6 @@
         "PATH=/usr/local/bin:/usr/bin"
       ],
       "onlyif": "test -d /opt/myapp",
-      "timeout": 60,
-      "tries": 3,
-      "try_sleep": 5,
       "umask": "0022",
       "user": "ubuntu"
     },

@@ -62,23 +62,22 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
                     entry["defer"] = True
                     
                 write_files.append(entry)
-            
+                        
             elif f["type"] == "dir":
-                # Directories need to be created via runcmd or cloud-init's filesystem module
                 if "runcmd" not in cloud_config:
                     cloud_config["runcmd"] = []
                 mode = f.get("mode", "0755")
                 owner = f.get("owner", "root:root")
-                cloud_config["runcmd"].append(
-                    f"mkdir -p {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
-                )
-            
+                cmd = f"mkdir -p {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
+                cloud_config["runcmd"].append(InlineList(["sh", "-c", f'{cmd}']))
+
             elif f["type"] == "link":
                 if "runcmd" not in cloud_config:
                     cloud_config["runcmd"] = []
-                cloud_config["runcmd"].append(
-                    f"ln -sf {f.get('target', '')} {f['path']}"
-                )
+                mode = f.get("mode", "0755")
+                owner = f.get("owner", "root:root")
+                cmd = f"ln -sf {f.get('target', '')} {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
+                cloud_config["runcmd"].append(InlineList(["sh", "-c", f'{cmd}']))
         
         if write_files:
             cloud_config["write_files"] = write_files
@@ -271,7 +270,7 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
                 # Thêm timeout nếu có
                 timeout = svc.get("timeout")
                 if timeout:
-                    cmd_parts_list.append(f"sudo timeout {timeout}")
+                    cmd_parts_list.append(f"timeout {timeout}")
                 
                 # Thêm systemctl command
                 cmd_parts_list.append("systemctl")
@@ -291,7 +290,8 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
                 cmd_parts.append(cmd)
             
             if cmd_parts:
-                cloud_config["runcmd"].extend(cmd_parts)
+                # cloud_config["runcmd"].extend(cmd_parts)
+                cloud_config["runcmd"].append(InlineList(cmd_parts))
     
     # Exec section (Not okay)
     if "exec" in data:
