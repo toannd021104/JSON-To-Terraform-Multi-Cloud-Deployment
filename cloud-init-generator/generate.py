@@ -9,28 +9,25 @@ from validate_json import validate
 class literal_str(str):
     """Custom string class để force YAML dùng | style"""
     pass
+class InlineList(list):
+    """Custom string class để force YAML command style [a, b, c]"""
+    pass
+class InlineDict(dict):
+    """Custom string class để force YAML command style {k: v}"""
+    pass
 
 def literal_presenter(dumper, data):
     """Custom presenter cho literal string"""
     return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-
-# Register custom presenter
-yaml.add_representer(literal_str, literal_presenter)
-
-class InlineList(list):
-    pass
-
 def inline_list_representer(dumper, data):
+    """Custom presenter cho inline list"""
     return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
-
-yaml.add_representer(InlineList, inline_list_representer)
-
-class InlineDict(dict):
-    pass
-
 def inline_dict_representer(dumper, data):
+    """Custom presenter cho inline dict"""
     return dumper.represent_mapping('tag:yaml.org,2002:map', data, flow_style=True)
 
+yaml.add_representer(literal_str, literal_presenter)
+yaml.add_representer(InlineList, inline_list_representer)
 yaml.add_representer(InlineDict, inline_dict_representer)
 
 def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -138,109 +135,88 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
         packages = []
         package_upgrade = False
         apt_source_needed = []
-        
+
         if "runcmd" not in cloud_config:
             cloud_config["runcmd"] = []
-        
+
         for pkg in data["package"]:
             pkg_name = pkg["name"]
             ensure = pkg["ensure"]
             manager = pkg.get("manager", "apt")
             options = pkg.get("options", [])
-            
-            # Xử lý package install/upgrade thông thường
+
             if ensure in ["present", "latest"]:
                 if ensure == "latest":
                     package_upgrade = True
-                
-                # Thêm vào packages list (cho cloud-init tự động cài)
+
                 if pkg.get("version"):
                     packages.append(f"{pkg_name}={pkg['version']}")
                 else:
                     packages.append(pkg_name)
-                
-                # Handle package source
+
                 if pkg.get("source"):
                     apt_source_needed.append(pkg)
-                
-                # Nếu có options phức tạp, dùng runcmd thay vì packages
+
                 if options or pkg.get("configfiles") or pkg.get("mark_hold") or pkg.get("adminfile"):
-                    # Xóa khỏi packages list, sẽ cài qua runcmd
                     if pkg_name in packages:
                         packages.remove(pkg_name)
                     if pkg.get("version") and f"{pkg_name}={pkg['version']}" in packages:
                         packages.remove(f"{pkg_name}={pkg['version']}")
-                    
-                    # Build install command với options
+
                     cmd_parts = [manager]
-                    
-                    if manager == "apt":
+
+                    if manager in ["apt", "yum"]:
                         cmd_parts.append("install")
-                    elif manager == "yum":
-                        cmd_parts.append("install")
-                    
-                    # Thêm options
+
                     if options:
                         cmd_parts.extend(options)
-                    
-                    # Thêm configfiles option
+
                     if pkg.get("configfiles") == "keep":
                         cmd_parts.append("-o Dpkg::Options::=--force-confold")
                     elif pkg.get("configfiles") == "replace":
                         cmd_parts.append("-o Dpkg::Options::=--force-confnew")
-                    
-                    # Thêm package name
+
                     if pkg.get("version"):
                         cmd_parts.append(f"{pkg_name}={pkg['version']}")
                     else:
                         cmd_parts.append(pkg_name)
-                    
-                    cloud_config["runcmd"].append(" ".join(cmd_parts))
-                    
-                    # Mark hold nếu cần
+
+                    cloud_config["runcmd"].append(InlineList(cmd_parts))
+
                     if pkg.get("mark_hold"):
-                        cloud_config["runcmd"].append(f"apt-mark hold {pkg_name}")
-            
-            # Xử lý package removal
+                        cloud_config["runcmd"].append(InlineList(["apt-mark", "hold", pkg_name]))
+
             elif ensure == "absent":
                 cmd_parts = [manager]
-                
-                if manager == "apt":
+
+                if manager in ["apt", "yum"]:
                     cmd_parts.append("remove")
-                elif manager == "yum":
-                    cmd_parts.append("remove")
-                
-                # Thêm options
+
                 if options:
                     cmd_parts.extend(options)
-                
+
                 cmd_parts.append(pkg_name)
-                
-                cloud_config["runcmd"].append(" ".join(cmd_parts))
-        
-        # Thêm packages đơn giản (không có options)
+
+                cloud_config["runcmd"].append(InlineList(cmd_parts))
+
         if packages:
             cloud_config["packages"] = packages
-        
+
         if package_upgrade:
             cloud_config["package_upgrade"] = True
-        
-        # Thêm apt sources nếu cần
+
         if apt_source_needed:
             if "apt" not in cloud_config:
                 cloud_config["apt"] = {}
             if "sources" not in cloud_config["apt"]:
                 cloud_config["apt"]["sources"] = {}
-            
+
             for pkg in apt_source_needed:
                 source_key = f"{pkg['name']}_source"
                 cloud_config["apt"]["sources"][source_key] = {
                     "source": pkg["source"]
                 }
-    
-    # Service section
     if "service" in data:
-        # Cloud-init doesn't have direct service management, use runcmd
         if "runcmd" not in cloud_config:
             cloud_config["runcmd"] = []
         
@@ -250,7 +226,6 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
             if svc.get("enabled"):
                 cmd_parts.append(f"systemctl enable {svc['name']}")
             
-            # Build systemctl command với flags
             base_cmd = "systemctl"
             flags = svc.get("flags", "").strip()
             
@@ -264,26 +239,20 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
                 action = None
             
             if action:
-                # Build command từng phần
                 cmd_parts_list = []
                 
-                # Thêm timeout nếu có
                 timeout = svc.get("timeout")
                 if timeout:
                     cmd_parts_list.append(f"timeout {timeout}")
                 
-                # Thêm systemctl command
                 cmd_parts_list.append("systemctl")
                 
-                # Thêm action
                 cmd_parts_list.append(action)
                 
-                # Thêm flags nếu có (cho systemctl)
                 flags = svc.get("flags", "").strip()
                 if flags:
                     cmd_parts_list.append(flags)
                 
-                # Thêm service name
                 cmd_parts_list.append(svc['name'])
                 
                 cmd = " ".join(cmd_parts_list)
@@ -300,24 +269,22 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
         
         for ex in data["exec"]:
             cmd = ex["command"]
-            
-            # Build script parts
             script_parts = []
             
-            # Add umask
+            # 1. Add umask
             if ex.get("umask"):
                 script_parts.append(f"umask {ex['umask']}")
             
-            # Add environment
+            # 2. Add environment variables
             if ex.get("environment"):
                 for env in ex["environment"]:
                     script_parts.append(f"export {env}")
             
-            # Add cwd
+            # 3. Change working directory
             if ex.get("cwd"):
                 script_parts.append(f"cd {ex['cwd']}")
             
-            # Build condition string
+            # 4. Build conditional checks
             conditions = []
             
             if ex.get("creates"):
@@ -329,38 +296,35 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
             if ex.get("unless"):
                 conditions.append(f"! ({ex['unless']})")
             
-            # Combine condition + command
+            # 5. Combine conditions with command
             if conditions:
-                full_cmd = " && ".join(conditions) + f" && {cmd}"
+                script_parts.append(" && ".join(conditions) + f" && {cmd}")
             else:
-                full_cmd = cmd
+                script_parts.append(cmd)
             
-            script_parts.append(full_cmd)
+            # 6. Join all parts with &&
+            full_script = " && ".join(script_parts)
             
-            # Join all parts
-            full_script = " && ".join(script_parts)  # Dùng && thay vì ;
+            # 7. Run as different user (nếu có và không phải root)
+            if ex.get("user") and ex["user"] != "root":
+                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+                full_script = f'su -s /bin/bash {ex["user"]} -c "{escaped_script}"'
             
-            # Wrap with timeout
+            # 8. Add timeout wrapper (nếu có)
             if ex.get("timeout"):
-                # Dùng double quotes bên ngoài, escape internal quotes
                 escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
                 full_script = f'timeout {ex["timeout"]} sh -c "{escaped_script}"'
-
-            if ex.get("user"):
-                # Dùng single quotes bên ngoài, escape single quotes bên trong
-                escaped_script = full_script.replace("'", "'\\''")
-                full_script = f"su -s /bin/bash {ex['user']} -c '{escaped_script}'"
             
-            # Add retry wrapper
+            # 9. Add retry logic (nếu có)
             if ex.get("tries") and ex["tries"] > 1:
                 tries = ex["tries"]
                 sleep = ex.get("try_sleep", 5)
-                full_script = f"for i in $(seq 1 {tries}); do {full_script} && break || sleep {sleep}; done"
+                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
+                full_script = f'for i in $(seq 1 {tries}); do sh -c "{escaped_script}" && break || sleep {sleep}; done'
             
-            # Dùng InlineList để format [sh, -c, script]
+            # 10. Add to runcmd as [sh, -c, script]
             cloud_config["runcmd"].append(InlineList(["sh", "-c", full_script]))
-
-
+    
     # SSH config section
     if "ssh_config" in data:
         ssh = data["ssh_config"]
@@ -374,14 +338,13 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
         if ssh.get("ssh_publish_hostkeys"):
             ssh_publish = ssh["ssh_publish_hostkeys"]
             
-            # Nếu có blacklist, convert thành InlineList
             if isinstance(ssh_publish, dict) and "blacklist" in ssh_publish:
-                ssh_publish = ssh_publish.copy()  # Tránh modify original
+                ssh_publish = ssh_publish.copy()
                 ssh_publish["blacklist"] = InlineList(ssh_publish["blacklist"])
             
             cloud_config["ssh_publish_hostkeys"] = ssh_publish
     
-    # Bootcmd section (Not list format)
+    # Bootcmd section 
     if "bootcmd" in data:
         bootcmd = []
         for item in data["bootcmd"]:
@@ -424,7 +387,6 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
                 cleaned_conf = value.replace('\\n', '\n').strip()
                 apt_config["conf"] = literal_str(cleaned_conf + '\n')
             elif key == "debconf_selections":
-                # debconf_selections là dict, mỗi value cần format multiline
                 debconf = {}
                 for pkg_name, selections in value.items():
                     cleaned = selections.replace('\\n', '\n').strip()
@@ -435,9 +397,121 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
         
         if apt_config:
             cloud_config["apt"] = apt_config
-        
-    return cloud_config
 
+    # Growpart section (Okay)
+    if "growpart" in data and data["growpart"]:
+        growpart_data = data["growpart"]
+        growpart_config = {}
+
+        if "mode" in growpart_data:
+            growpart_config["mode"] = growpart_data["mode"]
+
+        if "devices" in growpart_data and growpart_data["devices"]:
+            growpart_config["devices"] = InlineList(growpart_data["devices"])
+
+        if "ignore_growroot_disabled" in growpart_data:
+            growpart_config["ignore_growroot_disabled"] = growpart_data["ignore_growroot_disabled"]
+
+        cloud_config["growpart"] = growpart_config
+        
+    # Resize_rootfs section (Okay)
+    if "resize_rootfs" in data and data["resize_rootfs"]:
+        cloud_config["resize_rootfs"] = data["resize_rootfs"]
+
+    # NTP module
+    if "ntp" in data and isinstance(data["ntp"], dict) and data["ntp"]:
+        ntp_data = {}
+
+        if "enabled" in data["ntp"]:
+            ntp_data["enabled"] = bool(data["ntp"]["enabled"])
+
+        if "ntp_client" in data["ntp"] and data["ntp"]["ntp_client"]:
+            ntp_data["ntp_client"] = data["ntp"]["ntp_client"]
+
+        for key in ["servers", "pools", "peers", "allow"]:
+            if key in data["ntp"] and isinstance(data["ntp"][key], list) and data["ntp"][key]:
+                # dùng InlineList cho pools (và có thể servers nếu bạn muốn inline luôn)
+                if key in ["pools"]:
+                    ntp_data[key] = InlineList(data["ntp"][key])
+                else:
+                    ntp_data[key] = data["ntp"][key]
+
+        if "config" in data["ntp"] and isinstance(data["ntp"]["config"], dict):
+            config = {}
+            for cfg_key in ["confpath", "check_exe", "packages", "service_name", "template"]:
+                if cfg_key in data["ntp"]["config"] and data["ntp"]["config"][cfg_key]:
+                    if cfg_key == "template":
+                        cleaned_tpl = data["ntp"]["config"][cfg_key].replace('\\n', '\n').strip()
+                        config[cfg_key] = literal_str(cleaned_tpl + '\n')
+                    elif cfg_key == "packages" and isinstance(data["ntp"]["config"][cfg_key], list):
+                        config[cfg_key] = data["ntp"]["config"][cfg_key]
+                    else:
+                        config[cfg_key] = data["ntp"]["config"][cfg_key]
+            if config:
+                ntp_data["config"] = config
+
+        if ntp_data:
+            cloud_config["ntp"] = ntp_data
+        
+    if "power_state" in data and data["power_state"]:
+        power_state_data = data["power_state"]
+        power_state_config = {}
+
+        if "delay" in power_state_data and power_state_data["delay"] is not None:
+            power_state_config["delay"] = power_state_data["delay"]
+
+        if "mode" in power_state_data and power_state_data["mode"]:
+            power_state_config["mode"] = power_state_data["mode"]
+
+        if "message" in power_state_data and power_state_data["message"]:
+            power_state_config["message"] = power_state_data["message"]
+
+        if "timeout" in power_state_data and power_state_data["timeout"] is not None:
+            power_state_config["timeout"] = power_state_data["timeout"]
+
+        if "condition" in power_state_data and power_state_data["condition"]:
+            if isinstance(power_state_data["condition"], list):
+                power_state_config["condition"] = InlineList(power_state_data["condition"])
+            else:
+                power_state_config["condition"] = power_state_data["condition"]
+
+        cloud_config["power_state"] = power_state_config 
+
+    # Package and hostname section
+    if "package_reboot_if_required" in data:
+        cloud_config["package_reboot_if_required"] = data["package_reboot_if_required"]
+
+    if "package_update" in data:
+        cloud_config["package_update"] = data["package_update"]
+
+    if "package_upgrade" in data:
+        cloud_config["package_upgrade"] = data["package_upgrade"]
+
+    if "hostname" in data:
+        cloud_config["hostname"] = data["hostname"]
+
+    if "preserve_hostname" in data:
+        cloud_config["preserve_hostname"] = data["preserve_hostname"]
+
+    if "create_hostname_file" in data:
+        cloud_config["create_hostname_file"] = data["create_hostname_file"]
+
+    if "fqdn" in data:
+        cloud_config["fqdn"] = data["fqdn"]
+
+    if "prefer_fqdn_over_hostname" in data:
+        cloud_config["prefer_fqdn_over_hostname"] = data["prefer_fqdn_over_hostname"]
+
+    if "manage_etc_hosts" in data:
+        cloud_config["manage_etc_hosts"] = data["manage_etc_hosts"]
+
+    if "timezone" in data:
+        cloud_config["timezone"] = data["timezone"]
+
+    if "locale" in data:
+        cloud_config["locale"] = data["locale"]
+            
+    return cloud_config
 
 def main():
     parser = argparse.ArgumentParser(
@@ -450,10 +524,10 @@ def main():
     # Validate trước khi convert
     print("Validating JSON schema...")
     if not validate(args.input):
-        print("\n❌ Validation failed. Conversion aborted.", file=sys.stderr)
+        print("\nValidation failed. Conversion aborted.", file=sys.stderr)
         sys.exit(1)
     
-    print("✅ Validation passed. Starting conversion...\n")
+    print("Validation passed. Starting conversion...\n")
     
     try:
         with open(args.input, "r", encoding="utf-8") as f:
@@ -474,10 +548,9 @@ def main():
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(output)
-        print(f"✅ Cloud-config written to: {args.output}")
+        print(f"Cloud-config written to: {args.output}")
     else:
         print(output)
-
 
 if __name__ == "__main__":
     main()

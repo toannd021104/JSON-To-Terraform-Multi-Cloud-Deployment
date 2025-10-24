@@ -1,22 +1,14 @@
-#!/usr/bin/env python3
-import argparse
-import json
-import sys
-from typing import List
-from jsonschema import Draft202012Validator, exceptions as js_exceptions
-
-# Schema definition for validating user data JSON
-USER_DATA_SCHEMA = {
+{
   "type": "object",
   "required": [],
-  "additionalProperties": False,
+  "additionalProperties": false,
   "properties": {
     "files": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": False,
+        "additionalProperties": false,
         "required": [
           "path",
           "type"
@@ -41,7 +33,7 @@ USER_DATA_SCHEMA = {
           },
           "backup": {
             "type": "boolean",
-            "default": False
+            "default": false
           },
           "owner": {
             "type": "string",
@@ -81,11 +73,11 @@ USER_DATA_SCHEMA = {
           },
           "defer": {
             "type": "boolean",
-            "default": False
+            "default": false
           },
           "append": {
             "type": "boolean",
-            "default": False
+            "default": false
           }
         },
         "allOf": [
@@ -224,7 +216,7 @@ USER_DATA_SCHEMA = {
     "groups": {
       "type": "array",
       "minItems": 0,
-      "uniqueItems": True,
+      "uniqueItems": true,
       "items": {
         "type": "string",
         "default": "",
@@ -242,7 +234,7 @@ USER_DATA_SCHEMA = {
           },
           {
             "type": "object",
-            "additionalProperties": False,
+            "additionalProperties": false,
             "required": [
               "name"
             ],
@@ -273,7 +265,7 @@ USER_DATA_SCHEMA = {
               "groups": {
                 "type": "array",
                 "default": [],
-                "uniqueItems": True,
+                "uniqueItems": true,
                 "items": {
                   "type": "string",
                   "minLength": 1,
@@ -299,11 +291,11 @@ USER_DATA_SCHEMA = {
               },
               "system": {
                 "type": "boolean",
-                "default": False
+                "default": false
               },
               "lock_passwd": {
                 "type": "boolean",
-                "default": False
+                "default": false
               },
               "expiredate": {
                 "type": [
@@ -315,7 +307,7 @@ USER_DATA_SCHEMA = {
               },
               "create_groups": {
                 "type": "boolean",
-                "default": False
+                "default": false
               },
               "hashed_passwd": {
                 "type": [
@@ -350,7 +342,7 @@ USER_DATA_SCHEMA = {
               "password_policy": {
                 "type": "object",
                 "default": {},
-                "additionalProperties": False,
+                "additionalProperties": false,
                 "properties": {
                   "max_days": {
                     "type": [
@@ -380,11 +372,11 @@ USER_DATA_SCHEMA = {
               },
               "no_create_home": {
                 "type": "boolean",
-                "default": False
+                "default": false
               },
               "no_user_group": {
                 "type": "boolean",
-                "default": False
+                "default": false
               }
             },
             "allOf": [
@@ -392,7 +384,7 @@ USER_DATA_SCHEMA = {
                 "if": {
                   "properties": {
                     "system": {
-                      "const": True
+                      "const": true
                     }
                   },
                   "required": [
@@ -415,7 +407,7 @@ USER_DATA_SCHEMA = {
                 "if": {
                   "properties": {
                     "system": {
-                      "const": False
+                      "const": false
                     }
                   },
                   "required": [
@@ -446,7 +438,7 @@ USER_DATA_SCHEMA = {
                 "if": {
                   "properties": {
                     "lock_passwd": {
-                      "const": True
+                      "const": true
                     }
                   },
                   "required": [
@@ -480,7 +472,7 @@ USER_DATA_SCHEMA = {
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": False,
+        "additionalProperties": false,
         "required": [
           "name",
           "ensure",
@@ -504,7 +496,7 @@ USER_DATA_SCHEMA = {
           },
           "enabled": {
             "type": "boolean",
-            "default": True
+            "default": true
           },
           "provider": {
             "type": [
@@ -539,7 +531,7 @@ USER_DATA_SCHEMA = {
               "minLength": 1,
               "pattern": "^[^\\n\\r]+$"
             },
-            "uniqueItems": True
+            "uniqueItems": true
           }
         },
         "allOf": [
@@ -595,7 +587,7 @@ USER_DATA_SCHEMA = {
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": False,
+        "additionalProperties": false,
         "required": [
           "name",
           "ensure"
@@ -677,7 +669,7 @@ USER_DATA_SCHEMA = {
       "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": False,
+        "additionalProperties": false,
         "required": [
           "command"
         ],
@@ -707,7 +699,7 @@ USER_DATA_SCHEMA = {
           "environment": {
             "type": "array",
             "default": [],
-            "uniqueItems": True,
+            "uniqueItems": true,
             "items": {
               "type": "string",
               "pattern": "^[A-Z0-9_]+=.*$"
@@ -782,11 +774,11 @@ USER_DATA_SCHEMA = {
         "disable_root",
         "disable_root_opts"
       ],
-      "additionalProperties": False,
+      "additionalProperties": false,
       "properties": {
         "ssh_deletekeys": {
           "type": "boolean",
-          "default": True
+          "default": true
         },
         "ssh_genkeytypes": {
           "type": "array",
@@ -795,7 +787,7 @@ USER_DATA_SCHEMA = {
             "rsa"
           ],
           "minItems": 1,
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "enum": [
@@ -807,7 +799,7 @@ USER_DATA_SCHEMA = {
         },
         "ssh_quiet_keygen": {
           "type": "boolean",
-          "default": False
+          "default": false
         },
         "ssh_publish_hostkeys": {
           "type": "object",
@@ -815,16 +807,16 @@ USER_DATA_SCHEMA = {
             "enabled",
             "blacklist"
           ],
-          "additionalProperties": False,
+          "additionalProperties": false,
           "properties": {
             "enabled": {
               "type": "boolean",
-              "default": True
+              "default": true
             },
             "blacklist": {
               "type": "array",
               "default": [],
-              "uniqueItems": True,
+              "uniqueItems": true,
               "items": {
                 "type": "string",
                 "enum": [
@@ -840,7 +832,7 @@ USER_DATA_SCHEMA = {
               "if": {
                 "properties": {
                   "enabled": {
-                    "const": False
+                    "const": false
                   }
                 },
                 "required": [
@@ -859,11 +851,11 @@ USER_DATA_SCHEMA = {
         },
         "allow_public_ssh_keys": {
           "type": "boolean",
-          "default": True
+          "default": true
         },
         "disable_root": {
           "type": "boolean",
-          "default": True
+          "default": true
         },
         "disable_root_opts": {
           "type": "string",
@@ -877,7 +869,7 @@ USER_DATA_SCHEMA = {
           "if": {
             "properties": {
               "disable_root": {
-                "const": True
+                "const": true
               }
             },
             "required": [
@@ -923,7 +915,7 @@ USER_DATA_SCHEMA = {
           "pattern": "^/dev/[a-zA-Z0-9]+$"
         }
       },
-      "additionalProperties": False
+      "additionalProperties": false
     },
     "disk_setup": {
       "type": "object",
@@ -936,7 +928,7 @@ USER_DATA_SCHEMA = {
             "overwrite",
             "table_type"
           ],
-          "additionalProperties": False,
+          "additionalProperties": false,
           "properties": {
             "layout": {
               "oneOf": [
@@ -991,7 +983,7 @@ USER_DATA_SCHEMA = {
           "filesystem",
           "label"
         ],
-        "additionalProperties": False,
+        "additionalProperties": false,
         "properties": {
           "cmd": {
             "type": "string"
@@ -1049,7 +1041,7 @@ USER_DATA_SCHEMA = {
         "size",
         "maxsize"
       ],
-      "additionalProperties": False,
+      "additionalProperties": false,
       "properties": {
         "filename": {
           "type": "string",
@@ -1071,16 +1063,16 @@ USER_DATA_SCHEMA = {
         "primary",
         "security"
       ],
-      "additionalProperties": False,
+      "additionalProperties": false,
       "properties": {
         "preserve_sources_list": {
           "type": "boolean",
-          "default": False
+          "default": false
         },
         "disable_suites": {
           "type": "array",
           "default": [],
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "enum": [
@@ -1101,12 +1093,12 @@ USER_DATA_SCHEMA = {
               "arches",
               "uri"
             ],
-            "additionalProperties": False,
+            "additionalProperties": false,
             "properties": {
               "arches": {
                 "type": "array",
                 "minItems": 1,
-                "uniqueItems": True,
+                "uniqueItems": true,
                 "items": {
                   "type": "string",
                   "pattern": "^[A-Za-z0-9_-]+$"
@@ -1126,7 +1118,7 @@ USER_DATA_SCHEMA = {
               },
               "search_dns": {
                 "type": "boolean",
-                "default": False
+                "default": false
               },
               "keyid": {
                 "type": "string",
@@ -1151,12 +1143,12 @@ USER_DATA_SCHEMA = {
               "arches",
               "uri"
             ],
-            "additionalProperties": False,
+            "additionalProperties": false,
             "properties": {
               "arches": {
                 "type": "array",
                 "minItems": 1,
-                "uniqueItems": True,
+                "uniqueItems": true,
                 "items": {
                   "type": "string",
                   "pattern": "^[A-Za-z0-9_-]+$"
@@ -1206,14 +1198,14 @@ USER_DATA_SCHEMA = {
         },
         "sources": {
           "type": "object",
-          "additionalProperties": False,
+          "additionalProperties": false,
           "patternProperties": {
             "^.+$": {
               "type": "object",
               "required": [
                 "source"
               ],
-              "additionalProperties": False,
+              "additionalProperties": false,
               "properties": {
                 "source": {
                   "type": "string",
@@ -1236,7 +1228,7 @@ USER_DATA_SCHEMA = {
                 },
                 "append": {
                   "type": "boolean",
-                  "default": True
+                  "default": true
                 }
               }
             }
@@ -1263,7 +1255,7 @@ USER_DATA_SCHEMA = {
         "devices": {
           "type": "array",
           "minItems": 1,
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "pattern": "^/(?:[a-zA-Z0-9/_-]*)?$",
@@ -1275,28 +1267,28 @@ USER_DATA_SCHEMA = {
         },
         "ignore_growroot_disabled": {
           "type": "boolean",
-          "default": False
+          "default": false
         }
       },
-      "additionalProperties": False,
+      "additionalProperties": false,
       "default": {
         "mode": "auto",
         "devices": [
           "/"
         ],
-        "ignore_growroot_disabled": False
+        "ignore_growroot_disabled": false
       }
     },
     "resize_rootfs": {
       "type": "boolean",
-      "default": True
+      "default": true
     },
     "ntp": {
       "type": "object",
       "properties": {
         "enabled": {
           "type": "boolean",
-          "default": True
+          "default": true
         },
         "ntp_client": {
           "type": "string",
@@ -1313,7 +1305,7 @@ USER_DATA_SCHEMA = {
         "servers": {
           "type": "array",
           "minItems": 0,
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "pattern": "^(?!\\s*$).+"
@@ -1323,7 +1315,7 @@ USER_DATA_SCHEMA = {
         "pools": {
           "type": "array",
           "minItems": 0,
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "pattern": "^(?!\\s*$).+"
@@ -1333,7 +1325,7 @@ USER_DATA_SCHEMA = {
         "peers": {
           "type": "array",
           "minItems": 0,
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "pattern": "^(?!\\s*$).+"
@@ -1343,7 +1335,7 @@ USER_DATA_SCHEMA = {
         "allow": {
           "type": "array",
           "minItems": 0,
-          "uniqueItems": True,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$"
@@ -1366,7 +1358,7 @@ USER_DATA_SCHEMA = {
             "packages": {
               "type": "array",
               "minItems": 1,
-              "uniqueItems": True,
+              "uniqueItems": true,
               "items": {
                 "type": "string",
                 "pattern": "^[a-zA-Z0-9._+-]+$"
@@ -1385,7 +1377,7 @@ USER_DATA_SCHEMA = {
               "minLength": 1
             }
           },
-          "additionalProperties": False,
+          "additionalProperties": false,
           "default": {
             "confpath": "/etc/chrony/chrony.conf",
             "check_exe": "chronyd",
@@ -1396,9 +1388,9 @@ USER_DATA_SCHEMA = {
           }
         }
       },
-      "additionalProperties": False,
+      "additionalProperties": false,
       "default": {
-        "enabled": True,
+        "enabled": true,
         "ntp_client": "auto",
         "servers": [],
         "pools": [],
@@ -1460,25 +1452,25 @@ USER_DATA_SCHEMA = {
               "minItems": 1
             }
           ],
-          "default": True
+          "default": true
         }
       },
       "required": [
         "mode"
       ],
-      "additionalProperties": False
+      "additionalProperties": false
     },
     "package_reboot_if_required": {
       "type": "boolean",
-      "default": False
+      "default": false
     },
     "package_update": {
       "type": "boolean",
-      "default": False
+      "default": false
     },
     "package_upgrade": {
       "type": "boolean",
-      "default": False
+      "default": false
     },
     "hostname": {
       "type": "string",
@@ -1489,11 +1481,11 @@ USER_DATA_SCHEMA = {
     },
     "preserve_hostname": {
       "type": "boolean",
-      "default": False
+      "default": false
     },
     "create_hostname_file": {
       "type": "boolean",
-      "default": True
+      "default": true
     },
     "fqdn": {
       "type": "string",
@@ -1504,7 +1496,7 @@ USER_DATA_SCHEMA = {
     },
     "prefer_fqdn_over_hostname": {
       "type": "boolean",
-      "default": False
+      "default": false
     },
     "manage_etc_hosts": {
       "oneOf": [
@@ -1519,7 +1511,7 @@ USER_DATA_SCHEMA = {
           ]
         }
       ],
-      "default": False
+      "default": false
     },
     "timezone": {
       "type": "string",
@@ -1541,66 +1533,3 @@ USER_DATA_SCHEMA = {
     }
   }
 }
-
-def format_path(error) -> str:
-    """
-    Chuyển vị trí lỗi thành string dạng JSON Pointer-like.
-    Ví dụ: files/0/type
-    """
-    parts = []
-    for p in list(error.absolute_path):
-        parts.append(str(p))
-    return "/".join(parts) if parts else "(root)"
-
-def collect_errors(instance) -> List[js_exceptions.ValidationError]:
-    validator = Draft202012Validator(USER_DATA_SCHEMA)
-    errors = sorted(validator.iter_errors(instance), key=lambda e: (list(e.absolute_path), e.message))
-    return errors
-
-def validate(json_path: str) -> bool:
-    """
-    Validate a JSON file against USER_DATA_SCHEMA.
-    
-    Args:
-        json_path: Path to JSON file to validate
-        
-    Returns:
-        True if valid, False otherwise
-    """
-    try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        print(f"Error: file not found: {json_path}", file=sys.stderr)
-        return False
-    except json.JSONDecodeError as e:
-        print(f"Error: invalid JSON syntax at line {e.lineno}, col {e.colno}: {e.msg}", file=sys.stderr)
-        return False
-
-    errors = collect_errors(data)
-
-    if not errors:
-        print("Valid JSON: conforms to USER_DATA_SCHEMA.")
-        return True
-
-    print(f"Found {len(errors)} validation error(s):")
-    for i, err in enumerate(errors, 1):
-        path = format_path(err)
-        print(f"\n[{i}] At: {path}")
-        print(f"    Message: {err.message}")
-
-        if err.context:
-            sub_msgs = sorted({c.message for c in err.context})
-            for sm in sub_msgs[:5]:
-                print(f"    Hint: {sm}")
-
-    return False
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Validate a JSON file against USER_DATA_SCHEMA.")
-    parser.add_argument("json_path", help="Path to JSON file to validate")
-    args = parser.parse_args()
-    
-    is_valid = validate(args.json_path)
-    sys.exit(0 if is_valid else 1)
