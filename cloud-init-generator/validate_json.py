@@ -2,37 +2,36 @@
 import argparse
 import json
 import sys
-from typing import List
 from jsonschema import Draft202012Validator, exceptions as js_exceptions
+from typing import List, Dict, Callable
+
 
 # Schema definition for validating user data JSON
 USER_DATA_SCHEMA = {
   "type": "object",
-  "required": [],
+  "required": ["target"],
   "additionalProperties": False,
   "properties": {
+    "target": {
+      "type": "string",
+      "enum": ["windows", "wins", "wind", "winserver", "linux", "lin", "lnx", "unix"],
+      "description": "Target operating system"
+    },
     "files": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": False,
-        "required": [
-          "path",
-          "type"
-        ],
+        "required": ["path", "type"],
         "properties": {
           "path": {
             "type": "string",
-            "pattern": "^/(?:[^\n]+)$"
+            "pattern": "^(/[^\n]+|[A-Za-z]:\\\\[^\n]+)$"
           },
           "type": {
             "type": "string",
-            "enum": [
-              "file",
-              "dir",
-              "link"
-            ],
+            "enum": ["file", "dir", "link"],
             "default": "file"
           },
           "content": {
@@ -65,18 +64,12 @@ USER_DATA_SCHEMA = {
             ]
           },
           "target": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "default": "",
             "pattern": "^/.*"
           },
           "validate_cmd": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "default": ""
           },
           "defer": {
@@ -86,6 +79,22 @@ USER_DATA_SCHEMA = {
           "append": {
             "type": "boolean",
             "default": False
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "gz",
+              "gzip",
+              "gz+base64",
+              "gzip+base64",
+              "gz+b64",
+              "gzip+b64",
+              "b64",
+              "base64",
+              "text/plain"
+            ],
+            "default": "text/plain",
+            "description": "Encoding type of the content"
           }
         },
         "allOf": [
@@ -96,30 +105,15 @@ USER_DATA_SCHEMA = {
                   "const": "file"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
               "not": {
-                "required": [
-                  "target"
-                ]
+                "required": ["target"]
               },
               "allOf": [
                 {
-                  "anyOf": [
-                    {
-                      "required": [
-                        "content"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "source"
-                      ]
-                    }
-                  ]
+                  "anyOf": [{"required": ["content"]}, {"required": ["source"]}]
                 }
               ]
             }
@@ -131,39 +125,17 @@ USER_DATA_SCHEMA = {
                   "const": "dir"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
               "not": {
                 "anyOf": [
-                  {
-                    "required": [
-                      "content"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "source"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "append"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "validate_cmd"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "target"
-                    ]
-                  }
-                ]
+  {"required": ["content"]},
+  {"required": ["source"]},
+  {"required": ["append"]},
+  {"required": ["validate_cmd"]},
+  {"required": ["target"]}
+  ]
               },
               "properties": {
                 "mode": {
@@ -179,37 +151,17 @@ USER_DATA_SCHEMA = {
                   "const": "link"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
-              "required": [
-                "target"
-              ],
+              "required": ["target"],
               "not": {
                 "anyOf": [
-                  {
-                    "required": [
-                      "content"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "source"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "append"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "validate_cmd"
-                    ]
-                  }
-                ]
+  {"required": ["content"]},
+  {"required": ["source"]},
+  {"required": ["append"]},
+  {"required": ["validate_cmd"]}
+  ]
               },
               "properties": {
                 "mode": {
@@ -243,56 +195,65 @@ USER_DATA_SCHEMA = {
           {
             "type": "object",
             "additionalProperties": False,
-            "required": [
-              "name"
-            ],
+            "required": ["name"],
             "properties": {
               "name": {
-                "type": [
-                  "string"
-                ],
+                "type": ["string"],
                 "default": "",
                 "minLength": 1,
                 "pattern": "^[a-z_][a-z0-9_-]*$"
               },
               "gecos": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "primary_group": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": "",
-                "pattern": "^[a-z_][a-z0-9_-]*$"
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_ -]*$"
               },
               "groups": {
-                "type": "array",
-                "default": [],
-                "uniqueItems": True,
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[a-z_][a-z0-9_-]*$"
-                }
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+                    },
+                    "uniqueItems": True
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "gid": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": False
+                  }
+                ]
               },
               "shell": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": "",
                 "pattern": "^/[^\\s]*$"
               },
               "uid": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
+                "type": ["integer", "null"],
                 "default": "",
                 "minimum": 0,
                 "maximum": 60000
@@ -306,10 +267,7 @@ USER_DATA_SCHEMA = {
                 "default": False
               },
               "expiredate": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": "",
                 "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
               },
@@ -318,17 +276,11 @@ USER_DATA_SCHEMA = {
                 "default": False
               },
               "hashed_passwd": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "plain_passwd": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "ssh_authorized_keys": {
@@ -337,14 +289,11 @@ USER_DATA_SCHEMA = {
                 "items": {
                   "type": "string",
                   "minLength": 20,
-                  "pattern": "^(ssh-(rsa|ed25519)|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/=]+(?: .*)?$"
+                  "pattern": "^(ssh-(rsa|dss|ed25519)|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/=]+( .+)?$"
                 }
               },
               "sudo": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "password_policy": {
@@ -353,26 +302,17 @@ USER_DATA_SCHEMA = {
                 "additionalProperties": False,
                 "properties": {
                   "max_days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
+                    "type": ["integer", "null"],
                     "default": 90,
                     "minimum": 0
                   },
                   "min_days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
+                    "type": ["integer", "null"],
                     "default": 7,
                     "minimum": 0
                   },
                   "warn_days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
+                    "type": ["integer", "null"],
                     "default": 7,
                     "minimum": 0
                   }
@@ -385,6 +325,34 @@ USER_DATA_SCHEMA = {
               "no_user_group": {
                 "type": "boolean",
                 "default": False
+              },
+              "inactive": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]+$",
+                    "description": "Number of days until user is disabled (Linux cloud-init)"
+                  },
+                  {
+                    "type": "boolean",
+                    "description": "Disable user account immediately (Windows cloudbase-init)"
+                  }
+                ],
+                "description": "Linux: number of days until disabled (e.g., '30'). Windows: true/false to disable account."
+              },
+              "passwd": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\$[1-6y]\\$.+\\$.+$",
+                    "description": "Hashed password (SHA-512, SHA-256, etc.)"
+                  },
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Plain text password (will be hashed automatically)"
+                  }
+                ]
               }
             },
             "allOf": [
@@ -395,17 +363,12 @@ USER_DATA_SCHEMA = {
                       "const": True
                     }
                   },
-                  "required": [
-                    "system"
-                  ]
+                  "required": ["system"]
                 },
                 "then": {
                   "properties": {
                     "uid": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ],
+                      "type": ["integer", "null"],
                       "maximum": 999
                     }
                   }
@@ -418,17 +381,12 @@ USER_DATA_SCHEMA = {
                       "const": False
                     }
                   },
-                  "required": [
-                    "system"
-                  ]
+                  "required": ["system"]
                 },
                 "then": {
                   "properties": {
                     "uid": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ],
+                      "type": ["integer", "null"],
                       "minimum": 1000
                     }
                   }
@@ -436,10 +394,7 @@ USER_DATA_SCHEMA = {
               },
               {
                 "not": {
-                  "required": [
-                    "hashed_passwd",
-                    "plain_passwd"
-                  ]
+                  "required": ["hashed_passwd", "plain_passwd"]
                 }
               },
               {
@@ -449,24 +404,11 @@ USER_DATA_SCHEMA = {
                       "const": True
                     }
                   },
-                  "required": [
-                    "lock_passwd"
-                  ]
+                  "required": ["lock_passwd"]
                 },
                 "then": {
                   "not": {
-                    "anyOf": [
-                      {
-                        "required": [
-                          "hashed_passwd"
-                        ]
-                      },
-                      {
-                        "required": [
-                          "plain_passwd"
-                        ]
-                      }
-                    ]
+                    "anyOf": [{"required": ["hashed_passwd"]}, {"required": ["plain_passwd"]}]
                   }
                 }
               }
@@ -481,12 +423,7 @@ USER_DATA_SCHEMA = {
       "items": {
         "type": "object",
         "additionalProperties": False,
-        "required": [
-          "name",
-          "ensure",
-          "flags",
-          "timeout"
-        ],
+        "required": ["name", "ensure", "flags", "timeout"],
         "properties": {
           "name": {
             "type": "string",
@@ -495,11 +432,7 @@ USER_DATA_SCHEMA = {
           },
           "ensure": {
             "type": "string",
-            "enum": [
-              "running",
-              "stopped",
-              "restarted"
-            ],
+            "enum": ["running", "stopped", "restarted"],
             "default": "running"
           },
           "enabled": {
@@ -507,18 +440,8 @@ USER_DATA_SCHEMA = {
             "default": True
           },
           "provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "systemd",
-              "sysvinit",
-              "windows",
-              "launchd",
-              "smf",
-              ""
-            ],
+            "type": ["string", "null"],
+            "enum": ["systemd", "sysvinit", "windows", "launchd", "smf", ""],
             "default": ""
           },
           "flags": {
@@ -550,9 +473,7 @@ USER_DATA_SCHEMA = {
                   "const": "systemd"
                 }
               },
-              "required": [
-                "provider"
-              ]
+              "required": ["provider"]
             },
             "then": {
               "properties": {
@@ -574,9 +495,7 @@ USER_DATA_SCHEMA = {
                   "const": "windows"
                 }
               },
-              "required": [
-                "provider"
-              ]
+              "required": ["provider"]
             },
             "then": {
               "properties": {
@@ -596,10 +515,7 @@ USER_DATA_SCHEMA = {
       "items": {
         "type": "object",
         "additionalProperties": False,
-        "required": [
-          "name",
-          "ensure"
-        ],
+        "required": ["name", "ensure"],
         "properties": {
           "name": {
             "type": "string",
@@ -608,11 +524,7 @@ USER_DATA_SCHEMA = {
           },
           "ensure": {
             "type": "string",
-            "enum": [
-              "present",
-              "latest",
-              "absent"
-            ]
+            "enum": ["present", "latest", "absent"]
           },
           "version": {
             "type": "string",
@@ -640,26 +552,13 @@ USER_DATA_SCHEMA = {
             },
             "then": {
               "not": {
-                "anyOf": [
-                  {
-                    "required": [
-                      "version"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "mark_hold"
-                    ]
-                  }
-                ]
+                "anyOf": [{"required": ["version"]}, {"required": ["mark_hold"]}]
               }
             }
           },
           {
             "if": {
-              "required": [
-                "version"
-              ]
+              "required": ["version"]
             },
             "then": {
               "properties": {
@@ -673,103 +572,95 @@ USER_DATA_SCHEMA = {
       }
     },
     "exec": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": False,
-        "required": [
-          "command"
-        ],
-        "properties": {
-          "command": {
+      "oneOf": [
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
             "type": "string",
-            "minLength": 1,
-            "pattern": ".*\\S.*",
-            "default": ""
+            "minLength": 1
           },
-          "creates": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": "",
-            "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*|https?://[^\\s]+)$"
-          },
-          "cwd": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": "",
-            "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*)$"
-          },
-          "environment": {
-            "type": "array",
-            "default": [],
-            "uniqueItems": True,
-            "items": {
-              "type": "string",
-              "pattern": "^[A-Z0-9_]+=.*$"
-            }
-          },
-          "onlyif": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": ""
-          },
-          "unless": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": ""
-          },
-          "timeout": {
-            "type": "integer",
-            "default": 300,
-            "minimum": 0,
-            "maximum": 86400
-          },
-          "tries": {
-            "type": "integer",
-            "default": 1,
-            "minimum": 1,
-            "maximum": 100
-          },
-          "try_sleep": {
-            "type": "integer",
-            "default": 0,
-            "minimum": 0,
-            "maximum": 3600
-          },
-          "umask": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": "",
-            "pattern": "^(|[0-7]{3,4})$"
-          },
-          "user": {
-            "type": "string",
-            "default": "root",
-            "pattern": "^[a-z_][a-z0-9_-]*[$]?$"
-          }
+          "description": "List of commands to execute"
         },
-        "allOf": [
-          {
-            "not": {
-              "required": [
-                "onlyif",
-                "unless"
-              ]
-            }
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["command"],
+            "properties": {
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              },
+              "creates": {
+                "type": ["string", "null"],
+                "default": "",
+                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*|https?://[^\\s]+)$"
+              },
+              "cwd": {
+                "type": ["string", "null"],
+                "default": "",
+                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*)$"
+              },
+              "environment": {
+                "type": "array",
+                "default": [],
+                "uniqueItems": True,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9_]+=.*$"
+                }
+              },
+              "onlyif": {
+                "type": ["string", "null"],
+                "default": ""
+              },
+              "unless": {
+                "type": ["string", "null"],
+                "default": ""
+              },
+              "timeout": {
+                "type": "integer",
+                "default": 300,
+                "minimum": 0,
+                "maximum": 86400
+              },
+              "tries": {
+                "type": "integer",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 100
+              },
+              "try_sleep": {
+                "type": "integer",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 3600
+              },
+              "umask": {
+                "type": ["string", "null"],
+                "default": "",
+                "pattern": "^(|[0-7]{3,4})$"
+              },
+              "user": {
+                "type": "string",
+                "default": "root",
+                "pattern": "^[a-z_][a-z0-9_-]*[$]?$"
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": ["onlyif", "unless"]
+                }
+              }
+            ]
           }
-        ]
-      }
+        }
+      ]
     },
     "ssh_config": {
       "type": "object",
@@ -790,19 +681,12 @@ USER_DATA_SCHEMA = {
         },
         "ssh_genkeytypes": {
           "type": "array",
-          "default": [
-            "ed25519",
-            "rsa"
-          ],
+          "default": ["ed25519", "rsa"],
           "minItems": 1,
           "uniqueItems": True,
           "items": {
             "type": "string",
-            "enum": [
-              "rsa",
-              "ecdsa",
-              "ed25519"
-            ]
+            "enum": ["rsa", "ecdsa", "ed25519"]
           }
         },
         "ssh_quiet_keygen": {
@@ -811,10 +695,7 @@ USER_DATA_SCHEMA = {
         },
         "ssh_publish_hostkeys": {
           "type": "object",
-          "required": [
-            "enabled",
-            "blacklist"
-          ],
+          "required": ["enabled", "blacklist"],
           "additionalProperties": False,
           "properties": {
             "enabled": {
@@ -827,11 +708,7 @@ USER_DATA_SCHEMA = {
               "uniqueItems": True,
               "items": {
                 "type": "string",
-                "enum": [
-                  "rsa",
-                  "ecdsa",
-                  "ed25519"
-                ]
+                "enum": ["rsa", "ecdsa", "ed25519"]
               }
             }
           },
@@ -843,9 +720,7 @@ USER_DATA_SCHEMA = {
                     "const": False
                   }
                 },
-                "required": [
-                  "enabled"
-                ]
+                "required": ["enabled"]
               },
               "then": {
                 "properties": {
@@ -880,9 +755,7 @@ USER_DATA_SCHEMA = {
                 "const": True
               }
             },
-            "required": [
-              "disable_root"
-            ]
+            "required": ["disable_root"]
           },
           "then": {
             "properties": {
@@ -931,11 +804,7 @@ USER_DATA_SCHEMA = {
       "patternProperties": {
         "^(my_alias|swap_disk|/dev/[a-zA-Z0-9]+)$": {
           "type": "object",
-          "required": [
-            "layout",
-            "overwrite",
-            "table_type"
-          ],
+          "required": ["layout", "overwrite", "table_type"],
           "additionalProperties": False,
           "properties": {
             "layout": {
@@ -972,10 +841,7 @@ USER_DATA_SCHEMA = {
             },
             "table_type": {
               "type": "string",
-              "enum": [
-                "mbr",
-                "gpt"
-              ]
+              "enum": ["mbr", "gpt"]
             }
           }
         }
@@ -986,11 +852,7 @@ USER_DATA_SCHEMA = {
       "default": [],
       "items": {
         "type": "object",
-        "required": [
-          "device",
-          "filesystem",
-          "label"
-        ],
+        "required": ["device", "filesystem", "label"],
         "additionalProperties": False,
         "properties": {
           "cmd": {
@@ -1001,12 +863,7 @@ USER_DATA_SCHEMA = {
           },
           "filesystem": {
             "type": "string",
-            "enum": [
-              "ext4",
-              "xfs",
-              "btrfs",
-              "swap"
-            ]
+            "enum": ["ext4", "xfs", "btrfs", "swap"]
           },
           "label": {
             "type": "string"
@@ -1016,14 +873,7 @@ USER_DATA_SCHEMA = {
     },
     "mount_default_fields": {
       "type": "array",
-      "default": [
-        "",
-        "",
-        "auto",
-        "defaults,nofail",
-        "0",
-        "2"
-      ],
+      "default": ["", "", "auto", "defaults,nofail", "0", "2"],
       "minItems": 6,
       "maxItems": 6
     },
@@ -1035,20 +885,13 @@ USER_DATA_SCHEMA = {
         "minItems": 2,
         "maxItems": 6,
         "items": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       }
     },
     "swap": {
       "type": "object",
-      "required": [
-        "filename",
-        "size",
-        "maxsize"
-      ],
+      "required": ["filename", "size", "maxsize"],
       "additionalProperties": False,
       "properties": {
         "filename": {
@@ -1067,10 +910,7 @@ USER_DATA_SCHEMA = {
     },
     "apt": {
       "type": "object",
-      "required": [
-        "primary",
-        "security"
-      ],
+      "required": ["primary", "security"],
       "additionalProperties": False,
       "properties": {
         "preserve_sources_list": {
@@ -1083,13 +923,7 @@ USER_DATA_SCHEMA = {
           "uniqueItems": True,
           "items": {
             "type": "string",
-            "enum": [
-              "updates",
-              "backports",
-              "security",
-              "proposed",
-              "release"
-            ]
+            "enum": ["updates", "backports", "security", "proposed", "release"]
           }
         },
         "primary": {
@@ -1097,10 +931,7 @@ USER_DATA_SCHEMA = {
           "minItems": 0,
           "items": {
             "type": "object",
-            "required": [
-              "arches",
-              "uri"
-            ],
+            "required": ["arches", "uri"],
             "additionalProperties": False,
             "properties": {
               "arches": {
@@ -1147,10 +978,7 @@ USER_DATA_SCHEMA = {
           "minItems": 0,
           "items": {
             "type": "object",
-            "required": [
-              "arches",
-              "uri"
-            ],
+            "required": ["arches", "uri"],
             "additionalProperties": False,
             "properties": {
               "arches": {
@@ -1210,9 +1038,7 @@ USER_DATA_SCHEMA = {
           "patternProperties": {
             "^.+$": {
               "type": "object",
-              "required": [
-                "source"
-              ],
+              "required": ["source"],
               "additionalProperties": False,
               "properties": {
                 "source": {
@@ -1252,12 +1078,7 @@ USER_DATA_SCHEMA = {
       "properties": {
         "mode": {
           "type": "string",
-          "enum": [
-            "auto",
-            "growpart",
-            "gpart",
-            "off"
-          ],
+          "enum": ["auto", "growpart", "gpart", "off"],
           "default": "auto"
         },
         "devices": {
@@ -1269,9 +1090,7 @@ USER_DATA_SCHEMA = {
             "pattern": "^/(?:[a-zA-Z0-9/_-]*)?$",
             "default": "/"
           },
-          "default": [
-            "/"
-          ]
+          "default": ["/"]
         },
         "ignore_growroot_disabled": {
           "type": "boolean",
@@ -1281,9 +1100,7 @@ USER_DATA_SCHEMA = {
       "additionalProperties": False,
       "default": {
         "mode": "auto",
-        "devices": [
-          "/"
-        ],
+        "devices": ["/"],
         "ignore_growroot_disabled": False
       }
     },
@@ -1300,14 +1117,7 @@ USER_DATA_SCHEMA = {
         },
         "ntp_client": {
           "type": "string",
-          "enum": [
-            "auto",
-            "chrony",
-            "ntp",
-            "openntpd",
-            "ntpdate",
-            "systemd-timesyncd"
-          ],
+          "enum": ["auto", "chrony", "ntp", "openntpd", "ntpdate", "systemd-timesyncd"],
           "default": "auto"
         },
         "servers": {
@@ -1371,9 +1181,7 @@ USER_DATA_SCHEMA = {
                 "type": "string",
                 "pattern": "^[a-zA-Z0-9._+-]+$"
               },
-              "default": [
-                "chrony"
-              ]
+              "default": ["chrony"]
             },
             "service_name": {
               "type": "string",
@@ -1389,9 +1197,7 @@ USER_DATA_SCHEMA = {
           "default": {
             "confpath": "/etc/chrony/chrony.conf",
             "check_exe": "chronyd",
-            "packages": [
-              "chrony"
-            ],
+            "packages": ["chrony"],
             "service_name": "chronyd"
           }
         }
@@ -1417,20 +1223,14 @@ USER_DATA_SCHEMA = {
             },
             {
               "type": "string",
-              "enum": [
-                "now"
-              ]
+              "enum": ["now"]
             }
           ],
           "default": "now"
         },
         "mode": {
           "type": "string",
-          "enum": [
-            "poweroff",
-            "halt",
-            "reboot"
-          ],
+          "enum": ["poweroff", "halt", "reboot"],
           "default": "reboot"
         },
         "message": {
@@ -1463,9 +1263,7 @@ USER_DATA_SCHEMA = {
           "default": True
         }
       },
-      "required": [
-        "mode"
-      ],
+      "required": ["mode"],
       "additionalProperties": False
     },
     "package_reboot_if_required": {
@@ -1513,10 +1311,7 @@ USER_DATA_SCHEMA = {
         },
         {
           "type": "string",
-          "enum": [
-            "template",
-            "localhost"
-          ]
+          "enum": ["template", "localhost"]
         }
       ],
       "default": False
@@ -1525,32 +1320,101 @@ USER_DATA_SCHEMA = {
       "type": "string",
       "minLength": 1,
       "pattern": "^[A-Za-z_]+/[A-Za-z_]+(?:/[A-Za-z_]+)*$",
-      "examples": [
-        "Asia/Ho_Chi_Minh",
-        "America/New_York"
-      ]
+      "examples": ["Asia/Ho_Chi_Minh", "America/New_York"]
     },
     "locale": {
       "type": "string",
       "minLength": 2,
       "pattern": "^[A-Za-z]{2}_[A-Za-z]{2}\\.UTF-8$",
-      "examples": [
-        "en_US.UTF-8",
-        "vi_VN.UTF-8"
-      ]
+      "examples": ["en_US.UTF-8", "vi_VN.UTF-8"]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "enum": ["windows", "wins", "wind", "winserver"]
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {"required": ["files"]},
+          {"required": ["timezone"]},
+          {"required": ["hostname"]},
+          {"required": ["ntp"]},
+          {"required": ["users"]},
+          {"required": ["groups"]},
+          {"required": ["runcmd"]}
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "enum": ["linux"]
+          }
+        }
+      },
+      "then": {
+      }
+    }
+  ]
+}
+ 
+ 
+ERROR_MESSAGES: Dict[str, Callable] = {
+    'required': lambda err: f"Missing required field: '{list(err.validator_value)[0]}'. Please add this field to your configuration.",
+    'enum': lambda err: f"Invalid value '{err.instance}'. Allowed values are: {', '.join(map(str, err.validator_value))}",
+    'type': lambda err: f"Expected type '{err.validator_value}', got '{type(err.instance).__name__}' (value: '{err.instance}')",
+    'pattern': lambda err: f"Value '{err.instance}' does not match required pattern: {err.validator_value}",
+    'minLength': lambda err: f"Value '{err.instance}' is too short. Minimum length: {err.validator_value}",
+    'minimum': lambda err: f"Value '{err.instance}' is too small. Minimum: {err.validator_value}",
+    'maximum': lambda err: f"Value '{err.instance}' is too large. Maximum: {err.validator_value}",
 }
 
-def format_path(error) -> str:
-    """
-    Chuyển vị trí lỗi thành string dạng JSON Pointer-like.
-    Ví dụ: files/0/type
-    """
-    parts = []
-    for p in list(error.absolute_path):
-        parts.append(str(p))
-    return "/".join(parts) if parts else "(root)"
+# Field-specific custom messages (optional, mở rộng thêm)
+FIELD_SPECIFIC_MESSAGES: Dict[str, Dict[str, str]] = {
+    'target': {
+        'required': "Field 'target' is required. Please specify: 'windows' or 'linux'.",
+        'enum': "Invalid target OS. Must be either 'windows' or 'linux'."
+    },
+    'passwd': {
+        'pattern': "Password must be in hashed format (SHA-512) or plain text. Use: mkpasswd --method=SHA-512"
+    },
+    'ssh_authorized_keys': {
+        'pattern': "Invalid SSH key format. Expected: 'ssh-rsa|ssh-ed25519 <base64_key> [comment]'"
+    }
+}
+
+def format_path(error: js_exceptions.ValidationError) -> str:
+    """Format error path for display"""
+    if not error.absolute_path:
+        return "(root)"
+    return "/".join(str(p) for p in error.absolute_path)
+
+def get_custom_message(error: js_exceptions.ValidationError) -> str:
+    """Get custom error message or fallback to default"""
+    # Get field name from path
+    field_name = str(error.absolute_path[-1]) if error.absolute_path else None
+    
+    # Check field-specific messages first
+    if field_name and field_name in FIELD_SPECIFIC_MESSAGES:
+        field_messages = FIELD_SPECIFIC_MESSAGES[field_name]
+        if error.validator in field_messages:
+            return field_messages[error.validator]
+    
+    # Check generic validator messages
+    if error.validator in ERROR_MESSAGES:
+        try:
+            return ERROR_MESSAGES[error.validator](error)
+        except Exception:
+            pass
+    
+    # Fallback to original message
+    return error.message
 
 def collect_errors(instance) -> List[js_exceptions.ValidationError]:
     validator = Draft202012Validator(USER_DATA_SCHEMA)
@@ -1580,22 +1444,29 @@ def validate(json_path: str) -> bool:
     errors = collect_errors(data)
 
     if not errors:
-        print("Valid JSON: conforms to USER_DATA_SCHEMA.")
+        print("✓ Valid JSON: conforms to USER_DATA_SCHEMA.")
         return True
 
-    print(f"Found {len(errors)} validation error(s):")
+    print(f"✗ Found {len(errors)} validation error(s):")
     for i, err in enumerate(errors, 1):
         path = format_path(err)
+        custom_msg = get_custom_message(err)
+        
         print(f"\n[{i}] At: {path}")
-        print(f"    Message: {err.message}")
+        print(f"    Error: {custom_msg}")
+        # print(f"    Value: {repr(err.instance)}")
 
+        # Show original message if different
+        if custom_msg != err.message:
+            print(f"    Detail: {err.message}")
+
+        # Show context hints
         if err.context:
-            sub_msgs = sorted({c.message for c in err.context})
-            for sm in sub_msgs[:5]:
+            sub_msgs = sorted({get_custom_message(c) for c in err.context})
+            for sm in sub_msgs[:3]:  # Limit to 3 hints
                 print(f"    Hint: {sm}")
 
     return False
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Validate a JSON file against USER_DATA_SCHEMA.")
