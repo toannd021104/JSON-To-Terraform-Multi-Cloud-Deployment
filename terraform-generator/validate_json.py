@@ -19,7 +19,7 @@ TOPOLOGY_SCHEMA = {
                     "name": {"type": "string", "minLength": 1},
                     "image": {"type": "string", "minLength": 1},
                     "cpu": {"type": "integer", "minimum": 1},
-                    "ram": {"type": "integer", "minimum": 1},
+                    "ram": {"type": "number", "minimum": 0.5},
                     "disk": {"type": "integer", "minimum": 1},
                     "cloud_init": {"type": "string"},
                     "networks": {
@@ -135,7 +135,8 @@ def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[st
     try:
         validate(instance=data, schema=TOPOLOGY_SCHEMA)
     except ValidationError as e:
-        errors.append(f"Schema error: {e.message} at {e.json_path}")
+        path = ".".join(str(p) for p in e.path) if e.path else "root"
+        errors.append(f"Schema error: {e.message} at {path}")
 
     # Step 3: Collect network definitions and track used IPs
     network_info = {net["name"]: net for net in data.get("networks", [])}

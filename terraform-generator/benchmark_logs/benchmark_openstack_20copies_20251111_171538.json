@@ -1,0 +1,201 @@
+{
+  "provider": "openstack",
+  "num_copies": 20,
+  "timestamp": "2025-11-11T17:13:06.122384",
+  "stages": {
+    "generate": {
+      "duration_seconds": 76.78,
+      "duration_formatted": "1m 16.78s",
+      "project_folder": "/home/ubuntu/JSON-To-Terraform-Multi-Cloud-Deployment/terraform-projects/openstack_20251111_171309"
+    },
+    "cleanup": {
+      "duration_seconds": 72.26,
+      "duration_formatted": "1m 12.26s",
+      "success": true
+    }
+  },
+  "resources_created": {
+    "openstack_2d86c3": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_863bab": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_ec328a": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_9e237c": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_f1e033": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_d5a5c0": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_69409d": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_6d0915": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_4f07ab": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_a0c019": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_8f48be": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_dfce4f": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_587fa1": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_930067": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_a59002": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_ea67b5": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_73039e": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_69bd07": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_861169": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_591447": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    }
+  },
+  "total_time": 149.04,
+  "total_time_formatted": "2m 29.04s"
+}

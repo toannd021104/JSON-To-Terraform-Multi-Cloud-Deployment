@@ -10,10 +10,10 @@
 # OpenStack API is version 3. For example, your cloud provider may implement
 # Image API v1.1, Block Storage API v2, and Compute API v2.0. OS_AUTH_URL is
 # only for the Identity API served through keystone.
-export OS_AUTH_URL=http://10.102.192.230:5000
+export OS_AUTH_URL=http://10.105.196.95:5000
 # With the addition of Keystone we have standardized on the term **project**
 # as the entity that owns the resources.
-export OS_PROJECT_ID=7008794d07e4456b9ca48441c0d0fd90
+export OS_PROJECT_ID=160d77a6761c4bb3ab332e11cc9282b9
 export OS_PROJECT_NAME="dacn"
 export OS_USER_DOMAIN_NAME="Default"
 if [ -z "$OS_USER_DOMAIN_NAME" ]; then unset OS_USER_DOMAIN_NAME; fi
@@ -26,9 +26,7 @@ unset OS_TENANT_NAME
 # performing the action as the **user**.
 export OS_USERNAME="dacn"
 # With Keystone you pass the keystone password.
-echo "Please enter your OpenStack Password for project $OS_PROJECT_NAME as user $OS_USERNAME: "
-read -sr OS_PASSWORD_INPUT
-export OS_PASSWORD=$OS_PASSWORD_INPUT
+export OS_PASSWORD="47dd31ec570a445"
 # If your configuration has multiple regions, we set that information here.
 # OS_REGION_NAME is optional and only valid in certain environments.
 export OS_REGION_NAME="RegionOne"

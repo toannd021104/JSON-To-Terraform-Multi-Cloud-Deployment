@@ -97,7 +97,7 @@ def aws_instance_module_block(validated_map):
       subnet_id         = module.network.private_subnet_ids[each.value.networks[0].name]
       fixed_ip          = each.value.networks[0].ip
       # Use a cloud-init script if specified
-      user_data         = each.value.cloud_init != null ? file("${{path.module}}/cloud_init/${{each.value.cloud_init}}") : null
+      user_data         = lookup(each.value, "cloud_init", null) != null ? file("${{path.module}}/cloud_init/${{lookup(each.value, "cloud_init", null)}}") : null
       key_name          = "toanndcloud-keypair"
       # Assign public IP only if floating_ip is set to "true"
       assign_public_ip  = try(each.value.floating_ip, false)
@@ -161,7 +161,7 @@ def os_provider_block():
       password    = var.openstack_password
       # Override default compute endpoint if needed
       endpoint_overrides = {
-        compute = "http://10.102.192.230:8774/v2.1/"
+        compute = "http://10.105.196.95:8774/v2.1/"
       }
     }
     """)
@@ -176,6 +176,17 @@ def os_locals_block():
     }
     """)
 
+def os_keypair_module_block():
+    return textwrap.dedent("""
+    # ========================================
+    # Keypair Module
+    # Creates SSH keypair for instances
+    # ========================================
+    module "keypair" {
+      source = "./modules/keypair"
+    }
+    """)
+
 def os_network_module_block():
     return textwrap.dedent("""
     # ========================================
@@ -186,7 +197,7 @@ def os_network_module_block():
       source              = "./modules/network"
       networks            = local.topology.networks
       routers             = local.topology.routers
-      external_network_id = "c668f27f-c14b-410d-b1df-016adc280c6e"  # External (public) network ID
+      external_network_id = "8990843f-fbc3-49f2-ad08-5eb9b263b23e"  # External (public) network ID
     }
     """)
 
@@ -209,7 +220,7 @@ def os_instance_module_block(validated_map):
       network_id = module.network.network_ids[each.value.networks[0].name]
       fixed_ip   = each.value.networks[0].ip
       # Use cloud-init script if defined
-      user_data = each.value.cloud_init != null ? file("${{path.root}}/cloud_init/${{each.value.cloud_init}}") : null
+      user_data = lookup(each.value, "cloud_init", null) != null ? file("${{path.root}}/cloud_init/${{lookup(each.value, "cloud_init", null)}}") : null
       # Configure SSH keypair and security groups (optional)
       key_pair        = lookup(each.value, "keypair", null)
       security_groups = lookup(each.value, "security_groups", ["default"])

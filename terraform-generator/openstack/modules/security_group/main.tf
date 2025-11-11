@@ -18,7 +18,7 @@ provider "openstack" {
   password    = var.openstack_password
 
   endpoint_overrides = {
-    compute = "http://10.102.192.230:8774/v2.1/"
+    compute = "http://10.105.196.95:8774/v2.1/"
   }
 }
 

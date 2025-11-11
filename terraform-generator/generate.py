@@ -67,7 +67,8 @@ class TerraformGenerator:
                 if self.provider == "openstack":
                     validated_map[full_name] = {
                         "image": inst['image'],
-                        "flavor": inst['flavor']
+                        "flavor": inst['flavor'],
+                        "cloud_init": inst.get('cloud_init', None)
                     }
                 elif self.provider == "aws":
                     validated_map[full_name] = {
