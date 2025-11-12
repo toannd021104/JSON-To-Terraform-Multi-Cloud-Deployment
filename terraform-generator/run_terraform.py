@@ -10,21 +10,44 @@ def run_command_safe(folder, command):
         print(f"\nProcessing {folder.name}...")
 
         # Use subprocess with cwd instead of os.chdir to avoid race condition
+        cwd = str(folder.absolute())
+
+        # Always run `terraform init` first for apply/destroy to ensure modules are installed.
         if command == "init":
-            cmd = ["terraform", command]
-        else:
-            cmd = ["terraform", command, "-auto-approve"]
+            init_cmd = ["terraform", "init"]
+            init_result = subprocess.run(
+                init_cmd,
+                cwd=cwd,
+                capture_output=False,
+                text=True
+            )
+            exit_code = init_result.returncode
+            if exit_code != 0:
+                print(f"Error: terraform init failed in {folder.name}")
+            return exit_code
+
+        # For apply/destroy, run init first and fail early if it fails
+        init_result = subprocess.run(
+            ["terraform", "init"],
+            cwd=cwd,
+            capture_output=False,
+            text=True
+        )
+        if init_result.returncode != 0:
+            print(f"Error: terraform init failed in {folder.name}")
+            return init_result.returncode
+
+        # Now run the requested command (apply/destroy)
+        cmd = ["terraform", command, "-auto-approve"]
 
         result = subprocess.run(
             cmd,
-            cwd=str(folder.absolute()),
+            cwd=cwd,
             capture_output=False,
             text=True
         )
 
         exit_code = result.returncode
-
-        # Print error message if command failed
         if exit_code != 0:
             print(f"Error in {folder.name}")
 
@@ -57,13 +80,13 @@ def run_parallel(command):
         print(f"No folders starting with 'openstack_' or 'aws_' found in {current_dir}")
         return
 
-    # Apply shared VPC first if it exists
-    if shared_vpc.exists() and command in ["init", "apply"]:
+    # Apply/shared VPC handling: make sure to init before apply/destroy as needed
+    if shared_vpc.exists() and command in ["init", "apply", "destroy"]:
         print("\n=== Processing Shared VPC First ===")
         print(f"Running terraform {command} in 00-shared-vpc...")
 
         # Run terraform init first if command is apply
-        if command == "apply":
+        if command in ["apply", "destroy"]:
             init_result = subprocess.run(
                 ["terraform", "init"],
                 cwd=str(shared_vpc.absolute()),
@@ -73,9 +96,9 @@ def run_parallel(command):
                 print(f"\nERROR: terraform init failed in 00-shared-vpc")
                 return
 
-        # Run the actual command
+        # Run the actual command (init will already have been run in the branch above when needed)
         if command == "init":
-            cmd = ["terraform", command]
+            cmd = ["terraform", "init"]
         else:
             cmd = ["terraform", command, "-auto-approve"]
 

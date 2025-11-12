@@ -515,7 +515,7 @@ USER_DATA_SCHEMA = {
       "items": {
         "type": "object",
         "additionalProperties": False,
-        "required": ["name", "ensure"],
+        "required": ["name"],
         "properties": {
           "name": {
             "type": "string",
@@ -524,7 +524,8 @@ USER_DATA_SCHEMA = {
           },
           "ensure": {
             "type": "string",
-            "enum": ["present", "latest", "absent"]
+            "pattern": "^(present|latest|absent|(\\d+:)?[\\d\\.\\+\\~]+.*)$",
+            "description": "Package state (present/latest/absent) or apt version string"
           },
           "version": {
             "type": "string",
@@ -571,97 +572,90 @@ USER_DATA_SCHEMA = {
         ]
       }
     },
-    "exec": {
-      "oneOf": [
-        {
-          "type": "array",
-          "minItems": 1,
-          "items": {
+"exec": {
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "oneOf": [
+      {
+        "type": "string",
+        "minLength": 1,
+        "description": "Simple command string"
+      },
+      {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["command"],
+        "properties": {
+          "command": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "pattern": ".*\\S.*"
           },
-          "description": "List of commands to execute"
-        },
-        {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": False,
-            "required": ["command"],
-            "properties": {
-              "command": {
-                "type": "string",
-                "minLength": 1,
-                "pattern": ".*\\S.*"
-              },
-              "creates": {
-                "type": ["string", "null"],
-                "default": "",
-                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*|https?://[^\\s]+)$"
-              },
-              "cwd": {
-                "type": ["string", "null"],
-                "default": "",
-                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*)$"
-              },
-              "environment": {
-                "type": "array",
-                "default": [],
-                "uniqueItems": True,
-                "items": {
-                  "type": "string",
-                  "pattern": "^[A-Z0-9_]+=.*$"
-                }
-              },
-              "onlyif": {
-                "type": ["string", "null"],
-                "default": ""
-              },
-              "unless": {
-                "type": ["string", "null"],
-                "default": ""
-              },
-              "timeout": {
-                "type": "integer",
-                "default": 300,
-                "minimum": 0,
-                "maximum": 86400
-              },
-              "tries": {
-                "type": "integer",
-                "default": 1,
-                "minimum": 1,
-                "maximum": 100
-              },
-              "try_sleep": {
-                "type": "integer",
-                "default": 0,
-                "minimum": 0,
-                "maximum": 3600
-              },
-              "umask": {
-                "type": ["string", "null"],
-                "default": "",
-                "pattern": "^(|[0-7]{3,4})$"
-              },
-              "user": {
-                "type": "string",
-                "default": "root",
-                "pattern": "^[a-z_][a-z0-9_-]*[$]?$"
-              }
-            },
-            "allOf": [
-              {
-                "not": {
-                  "required": ["onlyif", "unless"]
-                }
-              }
-            ]
+          "creates": {
+            "type": ["string", "null"],
+            "default": None
+          },
+          "cwd": {
+            "type": ["string", "null"],
+            "default": None
+          },
+          "environment": {
+            "type": "array",
+            "default": [],
+            "uniqueItems": True,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z0-9_]+=.*$"
+            }
+          },
+          "onlyif": {
+            "type": ["string", "null"],
+            "default": None
+          },
+          "unless": {
+            "type": ["string", "null"],
+            "default": None
+          },
+          "timeout": {
+            "type": "integer",
+            "default": 300,
+            "minimum": 0,
+            "maximum": 86400
+          },
+          "tries": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "try_sleep": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 3600
+          },
+          "umask": {
+            "type": ["string", "null"],
+            "default": None
+          },
+          "user": {
+            "type": "string",
+            "default": "root",
+            "pattern": "^[a-z_][a-z0-9_-]*[$]?$"
           }
-        }
-      ]
-    },
+        },
+        "allOf": [
+          {
+            "not": {
+              "required": ["onlyif", "unless"]
+            }
+          }
+        ]
+      }
+    ]
+  }
+},
     "ssh_config": {
       "type": "object",
       "required": [

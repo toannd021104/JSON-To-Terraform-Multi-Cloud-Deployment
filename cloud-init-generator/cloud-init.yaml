@@ -4,14 +4,13 @@ runcmd:
     /opt/test-dir']
 - [sh, -c, 'ln -sf /opt/test /opt/test-symlink && chmod 0755 /opt/test-symlink &&
     chown root:root /opt/test-symlink']
-- [apt, install, --no-install-recommends, --allow-downgrades, -y, nginx]
+- [apt-get, --no-install-recommends, --allow-downgrades, -y, nginx]
 - [apt-mark, hold, nginx]
-- [apt, remove, --purge, --auto-remove, -y, apache2]
-- [sh, -c, 'su -s /bin/bash ubuntu -c "umask 0022 && export APP_ENV=production &&
-    export INSTALL_DATE=$(date) && cd /opt/myapp && [ ! -e /opt/myapp/installed.flag
-    ] && (test -d /opt/myapp) && echo \''Application installed successfully\'' > /opt/myapp/installed.flag"']
-- [sh, -c, '! (test -f /opt/myapp/installed.flag) && ls -lah /opt/myapp']
-- [sh, -c, (systemctl is-active nginx) && systemctl restart nginx]
+- [apt-get, --purge, --auto-remove, -y, apache2]
+- timeout 10 /tmp/cloud-init-exec-0-3e8291f4.sh
+- /tmp/cloud-init-exec-1-48f33de8.sh
+- /tmp/cloud-init-exec-2-fd533a45.sh
+- echo 'Simple command without options'
 write_files:
 - path: /opt/test
   owner: root:root
@@ -23,10 +22,42 @@ write_files:
   permissions: '0755'
   source:
     uri: https://raw.githubusercontent.com/canonical/cloud-init/main/doc/examples/cloud-config.txt
+- path: /tmp/cloud-init-exec-0-3e8291f4.sh
+  permissions: '0755'
+  owner: root:root
+  content: |
+    #!/bin/bash
+    set -e
+    umask 0022
+    export TEST_ENV=production
+    export TEST_DATE=$(date +%Y%m%d)
+    cd /tmp
+    if [ ! -e /tmp/test-app.log ] && [ -d /tmp ]; then
+      echo 'Test file created at '$(date) > /tmp/test-app.log
+    fi
+- path: /tmp/cloud-init-exec-1-48f33de8.sh
+  permissions: '0755'
+  owner: root:root
+  content: |
+    #!/bin/bash
+    set -e
+    if [ ! -f /tmp/test-app.log ]; then
+      echo 'Directory listing:' && ls -lah /tmp/test-*
+    fi
+- path: /tmp/cloud-init-exec-2-fd533a45.sh
+  permissions: '0755'
+  owner: root:root
+  content: |
+    #!/bin/bash
+    set -e
+    if [ -w /tmp ]; then
+      echo 'System uptime:' && uptime > /tmp/uptime.log
+    fi
 groups:
 - devops
 - monitoring
 - docker
+- toanquoc
 users:
 - default
 - name: user
@@ -48,13 +79,25 @@ users:
   plain_text_passwd: prometheus
   lock_passwd: false
   no_create_home: true
+- name: ubuntu1
+  gecos: Ubuntu Test User
+  primary_group: toanquoc 
+  shell: /bin/bash
+  lock_passwd: false
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  plain_text_passwd: ubuntu
+packages:
+- git
 package_upgrade: false
 ssh_deletekeys: true
 ssh_genkeytypes: [ed25519, rsa]
-disable_root: true
+ssh_quiet_keygen: true
 ssh_publish_hostkeys:
   enabled: true
   blacklist: [rsa]
+allow_public_ssh_keys: true
+disable_root: true
+disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding
 bootcmd:
 - [mkdir, -p, /run/early-setup]
 - [sh, -c, echo 'bootcmd started at $(date)' >> /var/log/cloud-init.log]
@@ -62,18 +105,17 @@ swap:
   filename: /swapfile
   size: 1G
   maxsize: 2G
+apt:
+  preserve_sources_list: false
+  primary:
+  - arches:
+    - default
+    uri: http://archive.ubuntu.com/ubuntu
 growpart:
   mode: auto
   devices: [/]
   ignore_growroot_disabled: true
 resize_rootfs: true
-ntp: # đang lỗi với ntp
-  enabled: true
-  ntp_client: chrony
-  servers:
-  - 0.int.pool.ntp.org
-  - 1.int.pool.ntp.org
-  pools: [2.int.pool.ntp.org]
 power_state:
   delay: now
   mode: reboot
@@ -81,12 +123,17 @@ power_state:
   timeout: 30
   condition: [/usr/bin/test, -f, /var/run/reboot-required]
 package_reboot_if_required: true
-package_update: true
+package_update: false
 hostname: toanquoc
 preserve_hostname: false
 create_hostname_file: true
-fqdn: toanquoc.example.com
+fqdn: toanquocfpdn.example.com
 prefer_fqdn_over_hostname: false
 manage_etc_hosts: false
 timezone: Asia/Ho_Chi_Minh
 locale: en_US.UTF-8
+
+# ntp chrony se khong chay nen comment lai
+# ntp: # Cloud quản lý
+#   enabled: true
+#   ntp_client: chrony
