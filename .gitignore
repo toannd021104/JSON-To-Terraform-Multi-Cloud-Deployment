@@ -75,3 +75,4 @@ coverage/
 *.iml
 ~/.aws/*
 !~/.aws/config
+*.pdf

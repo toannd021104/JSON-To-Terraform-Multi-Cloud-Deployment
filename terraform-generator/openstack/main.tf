@@ -19,7 +19,7 @@ provider "openstack" {
 
   # Override default compute endpoint if needed
   endpoint_overrides = {
-    compute = "http://10.102.192.230:8774/v2.1/"
+    compute = "http://10.105.196.95:8774/v2.1/"
   }
 }
 
@@ -38,7 +38,7 @@ module "network" {
   source              = "./modules/network"
   networks            = local.topology.networks
   routers             = local.topology.routers
-  external_network_id = "c668f27f-c14b-410d-b1df-016adc280c6e"  # External (public) network ID
+  external_network_id = "8990843f-fbc3-49f2-ad08-5eb9b263b23e"  # External (public) network ID
 }
 
 # ========================================

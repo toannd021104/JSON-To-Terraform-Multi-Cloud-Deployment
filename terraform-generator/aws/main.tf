@@ -52,7 +52,7 @@ module "network" {
 module "security_group" {
   depends_on              = [module.network]
   source                  = "./modules/security_groups"
-  vpc_id                  = module.network.vpc_id
+  vpc_id                  = "vpc-0f9e1d98274fae447"
   required_security_groups = local.required_security_groups
 }
 
@@ -67,7 +67,7 @@ module "instance" {
 
   for_each   = { for inst in local.topology.instances : inst.name => inst }
 
-  vpc_id     = module.network.vpc_id
+  vpc_id     = "vpc-0f9e1d98274fae447"
 
   # Assign security groups for the instance (fallback to "default" if not found)
   security_group_ids = try(

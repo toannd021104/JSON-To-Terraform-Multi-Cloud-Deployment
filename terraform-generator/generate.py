@@ -66,7 +66,8 @@ class TerraformGenerator:
                 if self.provider == "openstack":
                     validated_map[full_name] = {
                         "image": inst['image'],
-                        "flavor": inst['flavor']
+                        "flavor": inst['flavor'],
+                        "cloud_init": inst.get('cloud_init', None)
                     }
                 elif self.provider == "aws":
                     validated_map[full_name] = {
@@ -75,18 +76,28 @@ class TerraformGenerator:
                     }
         return validated_map
 
-    def generate_config_content(self, validated_map):
+    def generate_config_content(self, validated_map, use_shared_vpc=False):
         # Generate main.tf content depending on provider
         if self.provider == "aws":
-            return (
-                tf_tpl.aws_terraform_block() + "\n" +
-                tf_tpl.aws_provider_block() + "\n" +
-                tf_tpl.aws_locals_block() + "\n" +
-                tf_tpl.aws_network_module_block() + "\n" +
-                tf_tpl.aws_security_group_block() + "\n" +
-                tf_tpl.aws_instance_module_block(validated_map) + "\n" +
-                tf_tpl.aws_bastion_block()
-            )
+            if use_shared_vpc:
+                # Instance-only config using remote state
+                return (
+                    tf_tpl.aws_terraform_block() + "\n" +
+                    tf_tpl.aws_provider_block() + "\n" +
+                    tf_tpl.aws_locals_block() + "\n" +
+                    tf_tpl.aws_instance_with_remote_state_block(validated_map)
+                )
+            else:
+                # Old way: create VPC in each copy
+                return (
+                    tf_tpl.aws_terraform_block() + "\n" +
+                    tf_tpl.aws_provider_block() + "\n" +
+                    tf_tpl.aws_locals_block() + "\n" +
+                    tf_tpl.aws_network_module_block() + "\n" +
+                    tf_tpl.aws_security_group_block() + "\n" +
+                    tf_tpl.aws_instance_module_block(validated_map) + "\n" +
+                    tf_tpl.aws_bastion_block()
+                )
         elif self.provider == "openstack":
             return (
                 tf_tpl.os_terraform_block() + "\n" +
@@ -95,6 +106,64 @@ class TerraformGenerator:
                 tf_tpl.os_network_module_block() + "\n" +
                 tf_tpl.os_instance_module_block(validated_map)
             )
+
+    def collect_all_networks_and_routers(self, original_topology, suffixes):
+        """Collect all networks and routers from all copies with given suffixes"""
+        all_networks = []
+        all_routers = []
+
+        for suffix in suffixes:
+            # Add networks with suffix
+            for net in original_topology.get('networks', []):
+                modified_net = net.copy()
+                modified_net['name'] = f"{net['name']}_{suffix}"
+                all_networks.append(modified_net)
+
+            # Add routers with suffix
+            for router in original_topology.get('routers', []):
+                modified_router = router.copy()
+                modified_router['name'] = f"{router['name']}_{suffix}"
+                # Modify network references in router
+                modified_router['networks'] = [
+                    {**net_ref, 'name': f"{net_ref['name']}_{suffix}"}
+                    for net_ref in router.get('networks', [])
+                ]
+                all_routers.append(modified_router)
+
+        return all_networks, all_routers
+
+    def create_shared_vpc_folder(self, main_folder, original_topology, suffixes):
+        """Create 00-shared-vpc folder with all networks from all copies"""
+        shared_vpc_path = os.path.join(main_folder, "00-shared-vpc")
+        os.makedirs(shared_vpc_path, exist_ok=True)
+
+        print(f"\n Creating shared VPC folder: {shared_vpc_path}")
+
+        # Collect all networks and routers from all copies
+        all_networks, all_routers = self.collect_all_networks_and_routers(original_topology, suffixes)
+
+        # Generate main.tf for shared VPC
+        main_tf_content = (
+            tf_tpl.aws_shared_vpc_terraform_block() + "\n" +
+            tf_tpl.aws_shared_vpc_provider_block() + "\n" +
+            tf_tpl.aws_shared_vpc_locals_block(all_networks, all_routers) + "\n" +
+            tf_tpl.aws_shared_vpc_network_module_block() + "\n" +
+            tf_tpl.aws_shared_vpc_security_group_block() + "\n" +
+            tf_tpl.aws_shared_vpc_bastion_block() + "\n" +
+            tf_tpl.aws_shared_vpc_outputs_block()
+        )
+
+        # Write main.tf
+        with open(os.path.join(shared_vpc_path, 'main.tf'), 'w', encoding='utf-8') as f:
+            f.write(main_tf_content)
+
+        # Generate variables.tf
+        variables_content = tf_tpl.aws_shared_vpc_variables_block()
+        with open(os.path.join(shared_vpc_path, 'variables.tf'), 'w', encoding='utf-8') as f:
+            f.write(variables_content)
+
+        print(f" Shared VPC folder created with {len(all_networks)} subnets for {self.num_copies} copies")
+        return all_networks, all_routers
 
     def generate_configs(self):
         # Create N Terraform folders with modified topology and config
@@ -108,11 +177,20 @@ class TerraformGenerator:
         if os.path.exists("run_terraform.py"):
             shutil.copy("run_terraform.py", os.path.join(main_folder, "run_terraform.py"))
 
-        for _ in range(self.num_copies):
-            suffix = str(uuid.uuid4())[:6]
+        # Generate all suffixes first
+        suffixes = [str(uuid.uuid4())[:6] for _ in range(self.num_copies)]
+
+        # Create shared VPC folder for AWS
+        use_shared_vpc = False
+        if self.provider == "aws":
+            self.create_shared_vpc_folder(main_folder, original_topology, suffixes)
+            use_shared_vpc = True
+
+        # Create instance folders with pre-generated suffixes
+        for suffix in suffixes:
             dir_name = f"{self.provider}_{suffix}"
             full_path = os.path.join(main_folder, dir_name)
-            self.create_provider_directory(full_path, original_topology, suffix)
+            self.create_provider_directory(full_path, original_topology, suffix, use_shared_vpc)
 
         # Run `terraform apply` after generating all folders
         subprocess.run(
@@ -121,7 +199,7 @@ class TerraformGenerator:
             check=True
         )
 
-    def create_provider_directory(self, dir_path, original_topology, suffix):
+    def create_provider_directory(self, dir_path, original_topology, suffix, use_shared_vpc=False):
         # Copy template folder, modify topology, write main.tf
         try:
             shutil.copytree(self.provider, dir_path)
@@ -129,7 +207,7 @@ class TerraformGenerator:
             with open(os.path.join(dir_path, 'topology.json'), 'w') as f:
                 json.dump(modified_topology, f, indent=2)
             validated_map = self.build_validated_map(suffix)
-            config_content = self.generate_config_content(validated_map)
+            config_content = self.generate_config_content(validated_map, use_shared_vpc)
             with open(os.path.join(dir_path, 'main.tf'), 'w', encoding='utf-8') as f:
                 f.write(config_content)
             print(f" Successfully created: {dir_path}")
