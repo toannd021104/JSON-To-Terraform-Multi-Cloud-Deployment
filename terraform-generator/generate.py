@@ -56,7 +56,6 @@ class TerraformGenerator:
                     print(f"- {msg}")
                 sys.exit(1)
 
-
     def build_validated_map(self, suffix=""):
         # Build a dictionary of instance names mapped to validated resource info
         validated_map = {}

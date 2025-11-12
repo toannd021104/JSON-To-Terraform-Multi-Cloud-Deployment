@@ -1,30 +1,28 @@
 {
   "type": "object",
-  "required": [],
+  "required": ["target"],
   "additionalProperties": false,
   "properties": {
+    "target": {
+      "type": "string",
+      "enum": ["windows", "wins", "wind", "winserver", "linux", "lin", "lnx", "unix"],
+      "description": "Target operating system"
+    },
     "files": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "path",
-          "type"
-        ],
+        "required": ["path", "type"],
         "properties": {
           "path": {
             "type": "string",
-            "pattern": "^/(?:[^\n]+)$"
+            "pattern": "^(/[^\n]+|[A-Za-z]:\\\\[^\n]+)$"
           },
           "type": {
             "type": "string",
-            "enum": [
-              "file",
-              "dir",
-              "link"
-            ],
+            "enum": ["file", "dir", "link"],
             "default": "file"
           },
           "content": {
@@ -57,18 +55,12 @@
             ]
           },
           "target": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "default": "",
             "pattern": "^/.*"
           },
           "validate_cmd": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "default": ""
           },
           "defer": {
@@ -78,6 +70,22 @@
           "append": {
             "type": "boolean",
             "default": false
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "gz",
+              "gzip",
+              "gz+base64",
+              "gzip+base64",
+              "gz+b64",
+              "gzip+b64",
+              "b64",
+              "base64",
+              "text/plain"
+            ],
+            "default": "text/plain",
+            "description": "Encoding type of the content"
           }
         },
         "allOf": [
@@ -88,30 +96,15 @@
                   "const": "file"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
               "not": {
-                "required": [
-                  "target"
-                ]
+                "required": ["target"]
               },
               "allOf": [
                 {
-                  "anyOf": [
-                    {
-                      "required": [
-                        "content"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "source"
-                      ]
-                    }
-                  ]
+                  "anyOf": [{"required": ["content"]}, {"required": ["source"]}]
                 }
               ]
             }
@@ -123,39 +116,17 @@
                   "const": "dir"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
               "not": {
                 "anyOf": [
-                  {
-                    "required": [
-                      "content"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "source"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "append"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "validate_cmd"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "target"
-                    ]
-                  }
-                ]
+  {"required": ["content"]},
+  {"required": ["source"]},
+  {"required": ["append"]},
+  {"required": ["validate_cmd"]},
+  {"required": ["target"]}
+  ]
               },
               "properties": {
                 "mode": {
@@ -171,37 +142,17 @@
                   "const": "link"
                 }
               },
-              "required": [
-                "type"
-              ]
+              "required": ["type"]
             },
             "then": {
-              "required": [
-                "target"
-              ],
+              "required": ["target"],
               "not": {
                 "anyOf": [
-                  {
-                    "required": [
-                      "content"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "source"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "append"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "validate_cmd"
-                    ]
-                  }
-                ]
+  {"required": ["content"]},
+  {"required": ["source"]},
+  {"required": ["append"]},
+  {"required": ["validate_cmd"]}
+  ]
               },
               "properties": {
                 "mode": {
@@ -235,56 +186,65 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "name"
-            ],
+            "required": ["name"],
             "properties": {
               "name": {
-                "type": [
-                  "string"
-                ],
+                "type": ["string"],
                 "default": "",
                 "minLength": 1,
                 "pattern": "^[a-z_][a-z0-9_-]*$"
               },
               "gecos": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "primary_group": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": "",
-                "pattern": "^[a-z_][a-z0-9_-]*$"
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_ -]*$"
               },
               "groups": {
-                "type": "array",
-                "default": [],
-                "uniqueItems": true,
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "pattern": "^[a-z_][a-z0-9_-]*$"
-                }
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$"
+                    },
+                    "uniqueItems": true
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "gid": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
               },
               "shell": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": "",
                 "pattern": "^/[^\\s]*$"
               },
               "uid": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
+                "type": ["integer", "null"],
                 "default": "",
                 "minimum": 0,
                 "maximum": 60000
@@ -298,10 +258,7 @@
                 "default": false
               },
               "expiredate": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": "",
                 "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
               },
@@ -310,17 +267,11 @@
                 "default": false
               },
               "hashed_passwd": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "plain_passwd": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "ssh_authorized_keys": {
@@ -329,14 +280,11 @@
                 "items": {
                   "type": "string",
                   "minLength": 20,
-                  "pattern": "^(ssh-(rsa|ed25519)|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/=]+(?: .*)?$"
+                  "pattern": "^(ssh-(rsa|dss|ed25519)|ecdsa-sha2-nistp(256|384|521)) [A-Za-z0-9+/=]+( .+)?$"
                 }
               },
               "sudo": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": ["string", "null"],
                 "default": ""
               },
               "password_policy": {
@@ -345,26 +293,17 @@
                 "additionalProperties": false,
                 "properties": {
                   "max_days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
+                    "type": ["integer", "null"],
                     "default": 90,
                     "minimum": 0
                   },
                   "min_days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
+                    "type": ["integer", "null"],
                     "default": 7,
                     "minimum": 0
                   },
                   "warn_days": {
-                    "type": [
-                      "integer",
-                      "null"
-                    ],
+                    "type": ["integer", "null"],
                     "default": 7,
                     "minimum": 0
                   }
@@ -377,6 +316,34 @@
               "no_user_group": {
                 "type": "boolean",
                 "default": false
+              },
+              "inactive": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]+$",
+                    "description": "Number of days until user is disabled (Linux cloud-init)"
+                  },
+                  {
+                    "type": "boolean",
+                    "description": "Disable user account immediately (Windows cloudbase-init)"
+                  }
+                ],
+                "description": "Linux: number of days until disabled (e.g., '30'). Windows: true/false to disable account."
+              },
+              "passwd": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\$[1-6y]\\$.+\\$.+$",
+                    "description": "Hashed password (SHA-512, SHA-256, etc.)"
+                  },
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Plain text password (will be hashed automatically)"
+                  }
+                ]
               }
             },
             "allOf": [
@@ -387,17 +354,12 @@
                       "const": true
                     }
                   },
-                  "required": [
-                    "system"
-                  ]
+                  "required": ["system"]
                 },
                 "then": {
                   "properties": {
                     "uid": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ],
+                      "type": ["integer", "null"],
                       "maximum": 999
                     }
                   }
@@ -410,17 +372,12 @@
                       "const": false
                     }
                   },
-                  "required": [
-                    "system"
-                  ]
+                  "required": ["system"]
                 },
                 "then": {
                   "properties": {
                     "uid": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ],
+                      "type": ["integer", "null"],
                       "minimum": 1000
                     }
                   }
@@ -428,10 +385,7 @@
               },
               {
                 "not": {
-                  "required": [
-                    "hashed_passwd",
-                    "plain_passwd"
-                  ]
+                  "required": ["hashed_passwd", "plain_passwd"]
                 }
               },
               {
@@ -441,24 +395,11 @@
                       "const": true
                     }
                   },
-                  "required": [
-                    "lock_passwd"
-                  ]
+                  "required": ["lock_passwd"]
                 },
                 "then": {
                   "not": {
-                    "anyOf": [
-                      {
-                        "required": [
-                          "hashed_passwd"
-                        ]
-                      },
-                      {
-                        "required": [
-                          "plain_passwd"
-                        ]
-                      }
-                    ]
+                    "anyOf": [{"required": ["hashed_passwd"]}, {"required": ["plain_passwd"]}]
                   }
                 }
               }
@@ -473,12 +414,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "name",
-          "ensure",
-          "flags",
-          "timeout"
-        ],
+        "required": ["name", "ensure", "flags", "timeout"],
         "properties": {
           "name": {
             "type": "string",
@@ -487,11 +423,7 @@
           },
           "ensure": {
             "type": "string",
-            "enum": [
-              "running",
-              "stopped",
-              "restarted"
-            ],
+            "enum": ["running", "stopped", "restarted"],
             "default": "running"
           },
           "enabled": {
@@ -499,18 +431,8 @@
             "default": true
           },
           "provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "enum": [
-              "systemd",
-              "sysvinit",
-              "windows",
-              "launchd",
-              "smf",
-              ""
-            ],
+            "type": ["string", "null"],
+            "enum": ["systemd", "sysvinit", "windows", "launchd", "smf", ""],
             "default": ""
           },
           "flags": {
@@ -542,9 +464,7 @@
                   "const": "systemd"
                 }
               },
-              "required": [
-                "provider"
-              ]
+              "required": ["provider"]
             },
             "then": {
               "properties": {
@@ -566,9 +486,7 @@
                   "const": "windows"
                 }
               },
-              "required": [
-                "provider"
-              ]
+              "required": ["provider"]
             },
             "then": {
               "properties": {
@@ -588,10 +506,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "name",
-          "ensure"
-        ],
+        "required": ["name", "ensure"],
         "properties": {
           "name": {
             "type": "string",
@@ -600,11 +515,7 @@
           },
           "ensure": {
             "type": "string",
-            "enum": [
-              "present",
-              "latest",
-              "absent"
-            ]
+            "enum": ["present", "latest", "absent"]
           },
           "version": {
             "type": "string",
@@ -632,26 +543,13 @@
             },
             "then": {
               "not": {
-                "anyOf": [
-                  {
-                    "required": [
-                      "version"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "mark_hold"
-                    ]
-                  }
-                ]
+                "anyOf": [{"required": ["version"]}, {"required": ["mark_hold"]}]
               }
             }
           },
           {
             "if": {
-              "required": [
-                "version"
-              ]
+              "required": ["version"]
             },
             "then": {
               "properties": {
@@ -665,103 +563,95 @@
       }
     },
     "exec": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "command"
-        ],
-        "properties": {
-          "command": {
+      "oneOf": [
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
             "type": "string",
-            "minLength": 1,
-            "pattern": ".*\\S.*",
-            "default": ""
+            "minLength": 1
           },
-          "creates": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": "",
-            "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*|https?://[^\\s]+)$"
-          },
-          "cwd": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": "",
-            "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*)$"
-          },
-          "environment": {
-            "type": "array",
-            "default": [],
-            "uniqueItems": true,
-            "items": {
-              "type": "string",
-              "pattern": "^[A-Z0-9_]+=.*$"
-            }
-          },
-          "onlyif": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": ""
-          },
-          "unless": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": ""
-          },
-          "timeout": {
-            "type": "integer",
-            "default": 300,
-            "minimum": 0,
-            "maximum": 86400
-          },
-          "tries": {
-            "type": "integer",
-            "default": 1,
-            "minimum": 1,
-            "maximum": 100
-          },
-          "try_sleep": {
-            "type": "integer",
-            "default": 0,
-            "minimum": 0,
-            "maximum": 3600
-          },
-          "umask": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": "",
-            "pattern": "^(|[0-7]{3,4})$"
-          },
-          "user": {
-            "type": "string",
-            "default": "root",
-            "pattern": "^[a-z_][a-z0-9_-]*[$]?$"
-          }
+          "description": "List of commands to execute"
         },
-        "allOf": [
-          {
-            "not": {
-              "required": [
-                "onlyif",
-                "unless"
-              ]
-            }
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command"],
+            "properties": {
+              "command": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": ".*\\S.*"
+              },
+              "creates": {
+                "type": ["string", "null"],
+                "default": "",
+                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*|https?://[^\\s]+)$"
+              },
+              "cwd": {
+                "type": ["string", "null"],
+                "default": "",
+                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*)$"
+              },
+              "environment": {
+                "type": "array",
+                "default": [],
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9_]+=.*$"
+                }
+              },
+              "onlyif": {
+                "type": ["string", "null"],
+                "default": ""
+              },
+              "unless": {
+                "type": ["string", "null"],
+                "default": ""
+              },
+              "timeout": {
+                "type": "integer",
+                "default": 300,
+                "minimum": 0,
+                "maximum": 86400
+              },
+              "tries": {
+                "type": "integer",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 100
+              },
+              "try_sleep": {
+                "type": "integer",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 3600
+              },
+              "umask": {
+                "type": ["string", "null"],
+                "default": "",
+                "pattern": "^(|[0-7]{3,4})$"
+              },
+              "user": {
+                "type": "string",
+                "default": "root",
+                "pattern": "^[a-z_][a-z0-9_-]*[$]?$"
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": ["onlyif", "unless"]
+                }
+              }
+            ]
           }
-        ]
-      }
+        }
+      ]
     },
     "ssh_config": {
       "type": "object",
@@ -782,19 +672,12 @@
         },
         "ssh_genkeytypes": {
           "type": "array",
-          "default": [
-            "ed25519",
-            "rsa"
-          ],
+          "default": ["ed25519", "rsa"],
           "minItems": 1,
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "enum": [
-              "rsa",
-              "ecdsa",
-              "ed25519"
-            ]
+            "enum": ["rsa", "ecdsa", "ed25519"]
           }
         },
         "ssh_quiet_keygen": {
@@ -803,10 +686,7 @@
         },
         "ssh_publish_hostkeys": {
           "type": "object",
-          "required": [
-            "enabled",
-            "blacklist"
-          ],
+          "required": ["enabled", "blacklist"],
           "additionalProperties": false,
           "properties": {
             "enabled": {
@@ -819,11 +699,7 @@
               "uniqueItems": true,
               "items": {
                 "type": "string",
-                "enum": [
-                  "rsa",
-                  "ecdsa",
-                  "ed25519"
-                ]
+                "enum": ["rsa", "ecdsa", "ed25519"]
               }
             }
           },
@@ -835,9 +711,7 @@
                     "const": false
                   }
                 },
-                "required": [
-                  "enabled"
-                ]
+                "required": ["enabled"]
               },
               "then": {
                 "properties": {
@@ -872,9 +746,7 @@
                 "const": true
               }
             },
-            "required": [
-              "disable_root"
-            ]
+            "required": ["disable_root"]
           },
           "then": {
             "properties": {
@@ -923,11 +795,7 @@
       "patternProperties": {
         "^(my_alias|swap_disk|/dev/[a-zA-Z0-9]+)$": {
           "type": "object",
-          "required": [
-            "layout",
-            "overwrite",
-            "table_type"
-          ],
+          "required": ["layout", "overwrite", "table_type"],
           "additionalProperties": false,
           "properties": {
             "layout": {
@@ -964,10 +832,7 @@
             },
             "table_type": {
               "type": "string",
-              "enum": [
-                "mbr",
-                "gpt"
-              ]
+              "enum": ["mbr", "gpt"]
             }
           }
         }
@@ -978,11 +843,7 @@
       "default": [],
       "items": {
         "type": "object",
-        "required": [
-          "device",
-          "filesystem",
-          "label"
-        ],
+        "required": ["device", "filesystem", "label"],
         "additionalProperties": false,
         "properties": {
           "cmd": {
@@ -993,12 +854,7 @@
           },
           "filesystem": {
             "type": "string",
-            "enum": [
-              "ext4",
-              "xfs",
-              "btrfs",
-              "swap"
-            ]
+            "enum": ["ext4", "xfs", "btrfs", "swap"]
           },
           "label": {
             "type": "string"
@@ -1008,14 +864,7 @@
     },
     "mount_default_fields": {
       "type": "array",
-      "default": [
-        "",
-        "",
-        "auto",
-        "defaults,nofail",
-        "0",
-        "2"
-      ],
+      "default": ["", "", "auto", "defaults,nofail", "0", "2"],
       "minItems": 6,
       "maxItems": 6
     },
@@ -1027,20 +876,13 @@
         "minItems": 2,
         "maxItems": 6,
         "items": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       }
     },
     "swap": {
       "type": "object",
-      "required": [
-        "filename",
-        "size",
-        "maxsize"
-      ],
+      "required": ["filename", "size", "maxsize"],
       "additionalProperties": false,
       "properties": {
         "filename": {
@@ -1059,10 +901,7 @@
     },
     "apt": {
       "type": "object",
-      "required": [
-        "primary",
-        "security"
-      ],
+      "required": ["primary", "security"],
       "additionalProperties": false,
       "properties": {
         "preserve_sources_list": {
@@ -1075,13 +914,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "enum": [
-              "updates",
-              "backports",
-              "security",
-              "proposed",
-              "release"
-            ]
+            "enum": ["updates", "backports", "security", "proposed", "release"]
           }
         },
         "primary": {
@@ -1089,10 +922,7 @@
           "minItems": 0,
           "items": {
             "type": "object",
-            "required": [
-              "arches",
-              "uri"
-            ],
+            "required": ["arches", "uri"],
             "additionalProperties": false,
             "properties": {
               "arches": {
@@ -1139,10 +969,7 @@
           "minItems": 0,
           "items": {
             "type": "object",
-            "required": [
-              "arches",
-              "uri"
-            ],
+            "required": ["arches", "uri"],
             "additionalProperties": false,
             "properties": {
               "arches": {
@@ -1202,9 +1029,7 @@
           "patternProperties": {
             "^.+$": {
               "type": "object",
-              "required": [
-                "source"
-              ],
+              "required": ["source"],
               "additionalProperties": false,
               "properties": {
                 "source": {
@@ -1244,12 +1069,7 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": [
-            "auto",
-            "growpart",
-            "gpart",
-            "off"
-          ],
+          "enum": ["auto", "growpart", "gpart", "off"],
           "default": "auto"
         },
         "devices": {
@@ -1261,9 +1081,7 @@
             "pattern": "^/(?:[a-zA-Z0-9/_-]*)?$",
             "default": "/"
           },
-          "default": [
-            "/"
-          ]
+          "default": ["/"]
         },
         "ignore_growroot_disabled": {
           "type": "boolean",
@@ -1273,9 +1091,7 @@
       "additionalProperties": false,
       "default": {
         "mode": "auto",
-        "devices": [
-          "/"
-        ],
+        "devices": ["/"],
         "ignore_growroot_disabled": false
       }
     },
@@ -1292,14 +1108,7 @@
         },
         "ntp_client": {
           "type": "string",
-          "enum": [
-            "auto",
-            "chrony",
-            "ntp",
-            "openntpd",
-            "ntpdate",
-            "systemd-timesyncd"
-          ],
+          "enum": ["auto", "chrony", "ntp", "openntpd", "ntpdate", "systemd-timesyncd"],
           "default": "auto"
         },
         "servers": {
@@ -1363,9 +1172,7 @@
                 "type": "string",
                 "pattern": "^[a-zA-Z0-9._+-]+$"
               },
-              "default": [
-                "chrony"
-              ]
+              "default": ["chrony"]
             },
             "service_name": {
               "type": "string",
@@ -1381,9 +1188,7 @@
           "default": {
             "confpath": "/etc/chrony/chrony.conf",
             "check_exe": "chronyd",
-            "packages": [
-              "chrony"
-            ],
+            "packages": ["chrony"],
             "service_name": "chronyd"
           }
         }
@@ -1409,20 +1214,14 @@
             },
             {
               "type": "string",
-              "enum": [
-                "now"
-              ]
+              "enum": ["now"]
             }
           ],
           "default": "now"
         },
         "mode": {
           "type": "string",
-          "enum": [
-            "poweroff",
-            "halt",
-            "reboot"
-          ],
+          "enum": ["poweroff", "halt", "reboot"],
           "default": "reboot"
         },
         "message": {
@@ -1455,9 +1254,7 @@
           "default": true
         }
       },
-      "required": [
-        "mode"
-      ],
+      "required": ["mode"],
       "additionalProperties": false
     },
     "package_reboot_if_required": {
@@ -1505,10 +1302,7 @@
         },
         {
           "type": "string",
-          "enum": [
-            "template",
-            "localhost"
-          ]
+          "enum": ["template", "localhost"]
         }
       ],
       "default": false
@@ -1517,19 +1311,47 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^[A-Za-z_]+/[A-Za-z_]+(?:/[A-Za-z_]+)*$",
-      "examples": [
-        "Asia/Ho_Chi_Minh",
-        "America/New_York"
-      ]
+      "examples": ["Asia/Ho_Chi_Minh", "America/New_York"]
     },
     "locale": {
       "type": "string",
       "minLength": 2,
       "pattern": "^[A-Za-z]{2}_[A-Za-z]{2}\\.UTF-8$",
-      "examples": [
-        "en_US.UTF-8",
-        "vi_VN.UTF-8"
-      ]
+      "examples": ["en_US.UTF-8", "vi_VN.UTF-8"]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "enum": ["windows", "wins", "wind", "winserver"]
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {"required": ["files"]},
+          {"required": ["timezone"]},
+          {"required": ["hostname"]},
+          {"required": ["ntp"]},
+          {"required": ["users"]},
+          {"required": ["groups"]},
+          {"required": ["runcmd"]}
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "enum": ["linux"]
+          }
+        }
+      },
+      "then": {
+      }
+    }
+  ]
 }
+ 

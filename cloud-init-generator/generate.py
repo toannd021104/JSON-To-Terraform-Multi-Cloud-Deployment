@@ -30,7 +30,213 @@ yaml.add_representer(literal_str, literal_presenter)
 yaml.add_representer(InlineList, inline_list_representer)
 yaml.add_representer(InlineDict, inline_dict_representer)
 
-def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
+def convert_to_cloudbase_init(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert validated JSON to CloudBase init format.
+    """
+    cloud_config = {}
+
+    # Ensure write_files list exists only once
+    write_files_list = cloud_config.get("write_files", [])
+
+    # Chocolatey installation support
+    if data:
+        write_files_list.append({
+            "path": r"C:\Windows\Temp\install-choco.ps1",
+            "permissions": "0644",
+            "content": literal_str(
+                "Set-ExecutionPolicy Bypass -Scope Process -Force\n"
+                "[System.Net.ServicePointManager]::SecurityProtocol = "
+                "[System.Net.ServicePointManager]::SecurityProtocol -bor 3072\n"
+                "iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))\n"
+            )
+        })
+
+        if "runcmd" not in cloud_config:
+            cloud_config["runcmd"] = []
+
+        script1 = 'powershell.exe -ExecutionPolicy Bypass -File "C:\\Windows\\Temp\\install-choco.ps1"'
+        script2 = 'powershell.exe -Command "choco feature enable -n=allowGlobalConfirmation"'
+        script3 = 'powershell.exe -Command "choco install git -y"'
+
+        cloud_config["runcmd"].append(script1)
+        cloud_config["runcmd"].append(script2)
+        cloud_config["runcmd"].append(script3)
+
+    # Process user provided files
+    if "files" in data:
+        for f in data["files"]:
+            if f["type"] == "file":
+                entry = {
+                    "path": f["path"],
+                    "permissions": f.get("mode", "0644")
+                }
+
+                if "content" in f:
+                    cleaned = f["content"].replace('\\n', '\n').strip()
+                    entry["content"] = literal_str(cleaned + '\n')
+                elif "source" in f:
+                    entry["source"] = {"uri": f["source"]}
+
+                if "encoding" in f:
+                    entry["encoding"] = f["encoding"]
+
+                if f.get("append"):
+                    entry["append"] = True
+                if f.get("defer"):
+                    entry["defer"] = True
+
+                write_files_list.append(entry)
+
+            elif f["type"] == "dir":
+                if "runcmd" not in cloud_config:
+                    cloud_config["runcmd"] = []
+
+                mode = f.get("mode", "0755")
+                owner = f.get("owner", "root:root")
+                cmd = f"mkdir -p {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
+                cloud_config["runcmd"].append(["sh", "-c", cmd])
+
+            elif f["type"] == "link":
+                if "runcmd" not in cloud_config:
+                    cloud_config["runcmd"] = []
+
+                mode = f.get("mode", "0755")
+                owner = f.get("owner", "root:root")
+                cmd = f"ln -sf {f.get('target', '')} {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
+                cloud_config["runcmd"].append(["sh", "-c", cmd])
+
+    # Finally assign back
+    if write_files_list:
+        cloud_config["write_files"] = write_files_list
+ 
+    if "hostname" in data:
+        cloud_config["set_hostname"] = data["hostname"]
+ 
+    if "timezone" in data:
+        cloud_config["set_timezone"] = data["timezone"]
+ 
+    if "ntp" in data and isinstance(data["ntp"], dict) and data["ntp"]:
+        ntp_data = {}
+
+        if "enabled" in data["ntp"]:
+            ntp_data["enabled"] = bool(data["ntp"]["enabled"])
+
+        for key in ["servers", "pools", "peers", "allow"]:
+            if key in data["ntp"] and isinstance(data["ntp"][key], list) and data["ntp"][key]:
+                if key in ["pools"]:
+                    ntp_data[key] = InlineList(data["ntp"][key])
+                else:
+                    ntp_data[key] = data["ntp"][key]
+
+        if ntp_data:
+            cloud_config["ntp"] = ntp_data
+
+    # Groups section (Okay)
+    if "groups" in data and data["groups"]:
+        cloud_config["groups"] = data["groups"]
+    
+    # Users section (Okay)
+    if "users" in data:
+        users = []
+        for u in data["users"]:
+            if u == "default":
+                users.append("default")
+            else:
+                user_entry = {"name": u["name"]}
+                if u.get("gecos"):
+                    user_entry["gecos"] = u["gecos"]
+                if u.get("primary_group"):
+                    user_entry["primary_group"] = u["primary_group"]
+                if u.get("groups"):
+                    user_entry["groups"] = u["groups"]
+                if u.get("passwd"):
+                    user_entry["passwd"] = u["passwd"]    
+                if u.get("ssh_authorized_keys"):
+                    user_entry["ssh_authorized_keys"] = u["ssh_authorized_keys"]
+                if u.get("inactive") is not None:
+                    user_entry["inactive"] = u["inactive"]
+                if u.get("expiredate"):
+                    user_entry["expiredate"] = u["expiredate"]
+                users.append(user_entry)
+        
+        if users:
+            cloud_config["users"] = users
+      
+    # Exec section (Not okay)
+    if "exec" in data:
+        if "runcmd" not in cloud_config:
+            cloud_config["runcmd"] = []
+        
+        for ex in data["exec"]:
+            # Handle both string and object format
+            if isinstance(ex, str):
+                # Simple string command
+                cloud_config["runcmd"].append(ex)
+                continue
+            
+            # Object format with advanced options
+            cmd = ex["command"]
+            script_parts = []
+            
+            # 1. Add umask
+            if ex.get("umask"):
+                script_parts.append(f"umask {ex['umask']}")
+            
+            # 2. Add environment variables
+            if ex.get("environment"):
+                for env in ex["environment"]:
+                    script_parts.append(f"export {env}")
+            
+            # 3. Change working directory
+            if ex.get("cwd"):
+                script_parts.append(f"cd {ex['cwd']}")
+            
+            # 4. Build conditional checks
+            conditions = []
+            
+            if ex.get("creates"):
+                conditions.append(f"[ ! -e {ex['creates']} ]")
+            
+            if ex.get("onlyif"):
+                conditions.append(f"({ex['onlyif']})")
+            
+            if ex.get("unless"):
+                conditions.append(f"! ({ex['unless']})")
+            
+            # 5. Combine conditions with command
+            if conditions:
+                script_parts.append(" && ".join(conditions) + f" && {cmd}")
+            else:
+                script_parts.append(cmd)
+            
+            # 6. Join all parts with &&
+            full_script = " && ".join(script_parts)
+            
+            # 7. Run as different user (nếu có và không phải root)
+            if ex.get("user") and ex["user"] != "root":
+                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+                full_script = f'su -s /bin/bash {ex["user"]} -c "{escaped_script}"'
+            
+            # 8. Add timeout wrapper (nếu có)
+            if ex.get("timeout"):
+                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
+                full_script = f'timeout {ex["timeout"]} sh -c "{escaped_script}"'
+            
+            # 9. Add retry logic (nếu có)
+            if ex.get("tries") and ex["tries"] > 1:
+                tries = ex["tries"]
+                sleep = ex.get("try_sleep", 5)
+                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
+                full_script = f'for i in $(seq 1 {tries}); do sh -c "{escaped_script}" && break || sleep {sleep}; done'
+            
+            # 10. Add to runcmd as [sh, -c, script]
+            cloud_config["runcmd"].append(InlineList([full_script]))
+
+ 
+    return cloud_config
+
+def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert validated JSON to Cloud-Init cloud-config format.
     """
@@ -268,6 +474,13 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
             cloud_config["runcmd"] = []
         
         for ex in data["exec"]:
+            # Handle both string and object format
+            if isinstance(ex, str):
+                # Simple string command
+                cloud_config["runcmd"].append(InlineList(["sh", "-c", ex]))
+                continue
+            
+            # Object format with advanced options
             cmd = ex["command"]
             script_parts = []
             
@@ -324,7 +537,8 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
             
             # 10. Add to runcmd as [sh, -c, script]
             cloud_config["runcmd"].append(InlineList(["sh", "-c", full_script]))
-    
+
+            
     # SSH config section
     if "ssh_config" in data:
         ssh = data["ssh_config"]
@@ -452,7 +666,7 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
 
         if ntp_data:
             cloud_config["ntp"] = ntp_data
-        
+         
     if "power_state" in data and data["power_state"]:
         power_state_data = data["power_state"]
         power_state_config = {}
@@ -489,7 +703,7 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
 
     if "hostname" in data:
         cloud_config["hostname"] = data["hostname"]
-
+ 
     if "preserve_hostname" in data:
         cloud_config["preserve_hostname"] = data["preserve_hostname"]
 
@@ -507,11 +721,25 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
 
     if "timezone" in data:
         cloud_config["timezone"] = data["timezone"]
-
+ 
     if "locale" in data:
         cloud_config["locale"] = data["locale"]
             
     return cloud_config
+
+def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert validated JSON to cloud-config format.
+    """
+    cloud_config = {}
+    
+    if data["target"].lower() in ["windows", "wins", "wind", "winserver"]:
+        cloud_config = convert_to_cloudbase_init(data)
+    else:
+        cloud_config = convert_to_cloud_init(data)
+    
+    return cloud_config
+
 
 def main():
     parser = argparse.ArgumentParser(
