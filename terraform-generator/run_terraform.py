@@ -10,10 +10,28 @@ def run_command_safe(folder, command):
         print(f"\nProcessing {folder.name}...")
 
         # Use subprocess with cwd instead of os.chdir to avoid race condition
+        # For apply/destroy make sure the folder is initialized first
         if command == "init":
-            cmd = ["terraform", command]
-        else:
+            cmd = ["terraform", "init"]
+            result = subprocess.run(cmd, cwd=str(folder.absolute()), capture_output=False, text=True)
+            exit_code = result.returncode
+            if exit_code != 0:
+                print(f"Error: terraform init failed in {folder.name}")
+            return exit_code
+
+        # For commands that modify state, ensure modules/providers are installed first
+        if command in ("apply", "destroy"):
+            print(f"Running 'terraform init' in {folder.name} before '{command}'...")
+            init_result = subprocess.run(["terraform", "init"], cwd=str(folder.absolute()), capture_output=False, text=True)
+            if init_result.returncode != 0:
+                print(f"Error: terraform init failed in {folder.name}; skipping {command}.")
+                return init_result.returncode
+
+        # Run the actual command (apply/destroy) with auto-approve where appropriate
+        if command in ("apply", "destroy"):
             cmd = ["terraform", command, "-auto-approve"]
+        else:
+            cmd = ["terraform", command]
 
         result = subprocess.run(
             cmd,
