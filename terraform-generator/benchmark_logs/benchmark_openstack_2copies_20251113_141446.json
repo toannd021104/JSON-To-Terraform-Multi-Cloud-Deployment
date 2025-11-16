@@ -1,0 +1,39 @@
+{
+  "provider": "openstack",
+  "num_copies": 2,
+  "timestamp": "2025-11-13T14:12:23.530403",
+  "stages": {
+    "generate": {
+      "duration_seconds": 36.02,
+      "duration_formatted": "36.02s",
+      "project_folder": "/home/ubuntu/JSON-To-Terraform-Multi-Cloud-Deployment/terraform-projects/openstack_20251113_141227"
+    },
+    "cleanup": {
+      "duration_seconds": 34.6,
+      "duration_formatted": "34.60s",
+      "success": true
+    }
+  },
+  "resources_created": {
+    "openstack_71bc4f": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    },
+    "openstack_468a1b": {
+      "openstack_compute_instance_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1,
+      "total": 5,
+      "instances": 1
+    }
+  },
+  "total_time": 70.62,
+  "total_time_formatted": "1m 10.62s"
+}

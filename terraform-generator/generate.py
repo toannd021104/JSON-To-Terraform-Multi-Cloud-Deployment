@@ -7,6 +7,7 @@ from datetime import datetime
 from validate_json import validate_topology_file
 import terraform_templates as tf_tpl
 import subprocess
+import cloud_init_processor
 
 class TerraformGenerator:
     def __init__(self, provider, num_copies=1):
@@ -206,6 +207,10 @@ class TerraformGenerator:
             modified_topology = self.modify_topology(original_topology, suffix)
             with open(os.path.join(dir_path, 'topology.json'), 'w') as f:
                 json.dump(modified_topology, f, indent=2)
+
+            # Process cloud-init configurations
+            self.process_cloud_init_configs(dir_path)
+
             validated_map = self.build_validated_map(suffix)
             config_content = self.generate_config_content(validated_map, use_shared_vpc)
             with open(os.path.join(dir_path, 'main.tf'), 'w', encoding='utf-8') as f:
@@ -215,6 +220,39 @@ class TerraformGenerator:
             print(f" Error creating {dir_path}: {str(e)}")
             if os.path.exists(dir_path):
                 shutil.rmtree(dir_path)
+
+    def process_cloud_init_configs(self, dir_path):
+        """
+        Process cloud-init configurations for instances in the directory
+        Reads topology.json and generates cloud-init configs using cloud_init_processor
+        """
+        try:
+            # Load topology from the directory
+            topology_path = os.path.join(dir_path, 'topology.json')
+            with open(topology_path, 'r') as f:
+                topology = json.load(f)
+
+            # Process cloud-init for all instances
+            # Returns a map of instance_name -> yaml_filename
+            cloud_init_map = cloud_init_processor.process_all_instances(
+                topology,
+                self.validated_resources,
+                dir_path
+            )
+
+            # Update topology.json to reference the generated YAML files instead of JSON
+            if cloud_init_map:
+                for instance in topology.get('instances', []):
+                    if instance['name'] in cloud_init_map:
+                        instance['cloud_init'] = cloud_init_map[instance['name']]
+
+                # Write updated topology back to file
+                with open(topology_path, 'w') as f:
+                    json.dump(topology, f, indent=2)
+
+        except Exception as e:
+            print(f"  ⚠ Warning: Could not process cloud-init configs: {e}")
+            # Don't fail the entire process if cloud-init processing fails
 
     def modify_topology(self, topology, suffix):
         # Add suffix to all names in topology (instance, network, router)

@@ -220,7 +220,7 @@ def os_instance_module_block(validated_map):
       network_id = module.network.network_ids[each.value.networks[0].name]
       fixed_ip   = each.value.networks[0].ip
       # Use cloud-init script if defined
-      user_data = lookup(each.value, "cloud_init", null) != null ? file("${{path.root}}/cloud_init/${{lookup(each.value, "cloud_init", null)}}") : null
+      user_data = lookup(each.value, "cloud_init", null) != null ? file("${{path.module}}/cloud_init/${{lookup(each.value, "cloud_init", null)}}") : null
       # Configure SSH keypair and security groups (optional)
       key_pair        = lookup(each.value, "keypair", null)
       security_groups = lookup(each.value, "security_groups", ["default"])

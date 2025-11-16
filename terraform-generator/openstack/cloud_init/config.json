@@ -1,0 +1,47 @@
+{
+  "package_update": true,
+  "package_upgrade": true,
+  "hostname": "vm1",
+  "fqdn": "vm1.example.com",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "locale": "en_US.UTF-8",
+  "users": [
+    "default",
+    {
+      "name": "devops",
+      "gecos": "DevOps User",
+      "shell": "/bin/bash",
+      "sudo": "ALL=(ALL) NOPASSWD:ALL",
+      "lock_passwd": false,
+      "plain_passwd": "devops123",
+      "ssh_authorized_keys": [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyExampleOnlyForTestingPurpose demo-key"
+      ]
+    }
+  ],
+  "package": [
+    {
+      "name": "nginx",
+      "ensure": "present"
+    },
+    {
+      "name": "git",
+      "ensure": "present"
+    }
+  ],
+  "files": [
+    {
+      "path": "/etc/motd",
+      "type": "file",
+      "content": "Welcome to VM1!\\nManaged by Terraform + Cloud-Init",
+      "owner": "root:root",
+      "mode": "0644"
+    }
+  ],
+  "exec": [
+    {
+      "command": "systemctl enable nginx",
+      "user": "root"
+    }
+  ]
+}
