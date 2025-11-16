@@ -102,21 +102,28 @@ def check_ip_in_cidr(ip: str, cidr: str) -> bool:
     except ValueError:
         return False
 
-# Validate a cloud-init file using `cloud-init schema`
+# Validate a cloud-init file - check if it exists in cloud-init-generator folder
 def validate_cloud_init_file(cloud_init_path: str, provider: str) -> str:
-    path = os.path.join(provider, "cloud_init", cloud_init_path)
-    if not os.path.isfile(path):
-        return f"Cloud-init file '{path}' not found"
-    try:
-        result = subprocess.run(
-            ["cloud-init", "schema", "--config-file", path, "--annotate"],
-            capture_output=True, text=True
-        )
-        if result.returncode != 0:
-            return f"Schema error in cloud-init '{path}':\n{result.stderr.strip()}"
-    except Exception as e:
-        return f"Error validating cloud-init file '{path}': {str(e)}"
-    return None
+    """
+    Check if cloud-init JSON file exists in cloud-init-generator directory.
+    The actual validation will be done by cloud_init_processor during generation.
+    """
+    # Look for the file in cloud-init-generator directory
+    cloud_init_gen_dir = os.path.join(os.path.dirname(__file__), "..", "cloud-init-generator")
+
+    # Try with the exact filename
+    full_path = os.path.join(cloud_init_gen_dir, cloud_init_path)
+    if os.path.isfile(full_path):
+        return None  # File exists, validation will happen during generation
+
+    # Try with .json extension if not provided
+    if not cloud_init_path.endswith('.json'):
+        full_path_with_ext = os.path.join(cloud_init_gen_dir, f"{cloud_init_path}.json")
+        if os.path.isfile(full_path_with_ext):
+            return None
+
+    # File not found
+    return f"Cloud-init file '{cloud_init_path}' not found in cloud-init-generator directory"
 
 # Validate the entire topology.json
 def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[str]]:

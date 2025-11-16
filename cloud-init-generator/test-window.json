@@ -1,0 +1,49 @@
+{
+  "target": "wins",
+  "files": [
+    {
+      "type": "file",
+      "path": "C:\\ProgramData\\app-config.yaml",
+      "mode": "0640",
+      "content": "---\nnode_ip: '{{ ds.meta_data.local_ipv4 }}'\nhostname: '{{ ds.meta_data.hostname }}'\nenvironment: production"
+    },
+    {
+      "type": "file",
+      "path": "C:\\Windows\\Temp\\cloud-init-complete.txt",
+      "mode": "0644",
+      "encoding": "b64",
+      "content": "Q2xvdWQtaW5pdCBjb21wbGV0ZWQgc3VjY2Vzc2Z1bGx5"
+    }
+  ],
+  "timezone": "Asia/Saigon",
+  "hostname": "toanwuoc-win-host",
+  "ntp": {
+    "enabled": true,
+    "servers": ["time.windows.com", "0.pool.ntp.org"]
+  },
+  "groups": ["cloud-admins", "cloud-users"],
+  "users": [
+    {
+      "name": "toanwuoc_admin",
+      "gecos": "Cloud Administrator",
+      "primary_group": "Administrators",
+      "groups": "cloud-admins",
+      "passwd": "ToanWuoc123456@",
+      "inactive": false
+    },
+    {
+      "name": "toanwuoc_user",
+      "gecos": "Application User",
+      "primary_group": "Users",
+      "groups": "cloud-users",
+      "passwd": "ToanWuoc123456@",
+      "inactive": false,
+      "ssh_authorized_keys": ["ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABbyV"]
+    }
+  ],
+  "exec": [
+    "powershell -Command \"Get-Date | Out-File C:\\Windows\\Temp\\cloud-init-start.log\"",
+    "netsh advfirewall firewall add rule name=\"Allow SSH\" dir=in action=allow protocol=TCP localport=22",
+    "powershell -Command \"Get-ComputerInfo | Out-File C:\\Windows\\Temp\\system-info.log\""
+  ]
+}
