@@ -76,3 +76,6 @@ coverage/
 ~/.aws/*
 !~/.aws/config
 *.pdf
+
+.terraform-projects/*
+benchmark_logs/*
