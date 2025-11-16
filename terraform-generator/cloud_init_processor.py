@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
 Cloud-Init Processor Module
-Integrates cloud-init-generator into terraform-generator workflow
+Integrates cloud-init into terraform-generator workflow
 """
 import os
 import sys
-import json
 import subprocess
 from typing import Optional, Dict
 
 # Path to cloud-init-generator directory
 CLOUD_INIT_GENERATOR_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
-    "cloud-init-generator"
+    "terraform-generator"
 )
 
 
@@ -52,106 +51,59 @@ def find_cloud_init_json(cloud_init_filename: str) -> Optional[str]:
     return None
 
 
-def validate_cloud_init_json(json_path: str) -> bool:
+def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> bool:
     """
-    Validate cloud-init JSON using the validator in cloud-init-generator
-    Returns: True if valid, False otherwise
-
-    Note: The "target" field will be auto-injected based on OS detection,
-    so we temporarily remove it from validation if present
-    """
-    try:
-        # Load JSON data
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        # Temporarily remove "target" field for validation (will be auto-injected later)
-        target_value = data.pop('target', None)
-
-        # Create a temporary file without "target" field for validation
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
-            json.dump(data, temp_file, indent=2)
-            temp_path = temp_file.name
-
-        try:
-            # Import the validator
-            sys.path.insert(0, CLOUD_INIT_GENERATOR_DIR)
-            from validate_json import validate
-            sys.path.pop(0)
-
-            # Validate the temporary JSON file (without "target")
-            is_valid = validate(temp_path)
-            return is_valid
-        finally:
-            # Clean up temporary file
-            os.unlink(temp_path)
-
-    except ImportError as e:
-        # If validator has import errors (e.g., old jsonschema version), skip validation
-        print(f"  ⚠ Warning: Validator not available ({e}), skipping validation")
-        return True  # Allow to continue without validation
-    except Exception as e:
-        print(f"  ⚠ Warning: Could not validate cloud-init JSON: {e}")
-        return True  # Allow to continue without validation
-
-
-def generate_cloud_config(json_path: str, os_type: str) -> Optional[str]:
-    """
-    Generate cloud-config or cloudbase-init config from JSON
+    Generate cloud-config using external generate_cloudinit.py script
 
     Args:
         json_path: Path to cloud-init JSON file
         os_type: 'linux' or 'windows'
+        output_path: Path where YAML will be saved
 
-    Returns: Cloud-config YAML content or None if failed
+    Returns: True if successful, False otherwise
     """
     try:
-        # Import cloud-init-generator modules
-        sys.path.insert(0, CLOUD_INIT_GENERATOR_DIR)
-        from generate import convert_to_cloud_config
-        import yaml
-        from generate import literal_str, InlineList, InlineDict
-        from generate import literal_presenter, inline_list_representer, inline_dict_representer
+        # Path to generate_cloudinit.py script
+        generator_script = os.path.join(CLOUD_INIT_GENERATOR_DIR, "generate_cloudinit.py")
 
-        # Re-register YAML representers
-        yaml.add_representer(literal_str, literal_presenter)
-        yaml.add_representer(InlineList, inline_list_representer)
-        yaml.add_representer(InlineDict, inline_dict_representer)
+        if not os.path.exists(generator_script):
+            print(f"    ✗ Generator script not found: {generator_script}")
+            return False
 
-        sys.path.pop(0)
+        # Build command: python3 generate_cloudinit.py input.json -o output.yaml
+        cmd = [
+            sys.executable,  # Use same Python interpreter
+            generator_script,
+            json_path,
+            "-o", output_path
+        ]
 
-        # Load JSON data
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        # Run the generator
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=CLOUD_INIT_GENERATOR_DIR
+        )
 
-        # Auto-inject "target" field based on OS type
-        # This allows the converter to choose between cloud-init and cloudbase-init
-        if os_type == 'windows':
-            data['target'] = 'windows'
-        else:
-            data['target'] = 'linux'
+        if result.returncode != 0:
+            print(f"    ✗ Generator failed:")
+            if result.stderr:
+                print(f"      {result.stderr}")
+            return False
 
-        # Convert to cloud-config (will auto-detect and use cloudbase-init for Windows)
-        cloud_config = convert_to_cloud_config(data)
+        # Check if output file was created
+        if not os.path.exists(output_path):
+            print(f"    ✗ Output file was not created: {output_path}")
+            return False
 
-        # Generate YAML output with appropriate header
-        if os_type == 'windows':
-            # For Windows, use cloudbase-init header
-            output = "#cloudbase-init\n"
-        else:
-            # For Linux, use cloud-config header
-            output = "#cloud-config\n"
-
-        output += yaml.dump(cloud_config, default_flow_style=False, sort_keys=False)
-
-        return output
+        return True
 
     except Exception as e:
-        print(f"  ✗ Error generating cloud-config: {e}")
+        print(f"    ✗ Error running generator: {e}")
         import traceback
         traceback.print_exc()
-        return None
+        return False
 
 
 def process_cloud_init(
@@ -184,41 +136,27 @@ def process_cloud_init(
 
     print(f"    ✓ Found: {json_path}")
 
-    # Step 2: Detect OS type first (before validation)
+    # Step 2: Detect OS type
     os_type = detect_os_type(image_name)
     config_type = "cloudbase-init" if os_type == 'windows' else "cloud-config"
     print(f"    • Detected OS: {os_type} → Using {config_type}")
 
-    # Step 3: Validate the JSON (skip for Windows as cloudbase-init has different schema)
-    if os_type == 'linux':
-        print(f"    • Validating cloud-init JSON...")
-        if not validate_cloud_init_json(json_path):
-            print(f"    ✗ Cloud-init JSON validation failed")
-            return False
-        print(f"    ✓ Validation passed")
-    else:
-        print(f"    • Skipping validation for Windows (cloudbase-init has different schema)")
-
-    # Step 4: Generate cloud-config
-    print(f"    • Generating {config_type}...")
-    cloud_config_content = generate_cloud_config(json_path, os_type)
-
-    if not cloud_config_content:
-        print(f"    ✗ Failed to generate {config_type}")
-        return False
-
-    # Step 5: Create cloud_init directory if it doesn't exist
+    # Step 3: Create cloud_init directory if it doesn't exist
     cloud_init_dir = os.path.join(output_dir, "cloud_init")
     os.makedirs(cloud_init_dir, exist_ok=True)
 
-    # Step 6: Write cloud-config to file
-    # Keep the same filename but change extension to .yaml
+    # Step 4: Prepare output path
     base_name = os.path.splitext(cloud_init_filename)[0]
     output_filename = f"{base_name}.yaml"
     output_path = os.path.join(cloud_init_dir, output_filename)
 
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(cloud_config_content)
+    # Step 5: Generate cloud-config using external script
+    print(f"    • Generating {config_type} (validation + conversion)...")
+    success = generate_cloud_config(json_path, os_type, output_path)
+
+    if not success:
+        print(f"    ✗ Failed to generate {config_type}")
+        return False
 
     print(f"    ✓ Generated: {output_filename}")
     print(f"      Saved to: {output_path}")
@@ -259,11 +197,8 @@ def process_all_instances(topology: Dict, validated_resources: Dict, output_dir:
             continue
 
         # Find the original name by stripping suffix if present
-        # Suffix format: _{6-char-uuid}
-        # Try to match with validated_map keys
         original_name = None
         for orig_name in validated_map.keys():
-            # Check if instance_name is either the original name or original_name + suffix
             if instance_name == orig_name or instance_name.startswith(orig_name + '_'):
                 original_name = orig_name
                 break

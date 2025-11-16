@@ -1,4 +1,5 @@
 {
+  "target" : "linux",
   "package_reboot_if_required": true,
   "package_update": true,
   "package_upgrade": false,
@@ -13,7 +14,8 @@
   "groups": [
     "devops",
     "monitoring",
-    "docker"
+    "docker",
+    "toanquoc"
   ],
   "users": [
     "default",
@@ -42,7 +44,16 @@
       "shell": "/bin/false",
       "plain_passwd": "prometheus",
       "lock_passwd": false
-    }
+    },
+    {
+  "name": "ubuntu1",
+  "gecos": "Ubuntu Test User",
+  "primary_group": "toanquoc",
+  "shell": "/bin/bash",
+  "lock_passwd": false,
+  "sudo": "ALL=(ALL) NOPASSWD:ALL",
+  "plain_passwd": "ubuntu"
+  }
   ],
   "files": [
       {
@@ -150,17 +161,6 @@
       "/"
     ],
     "ignore_growroot_disabled": true
-  },
-  "ntp": {
-    "enabled": true,
-    "ntp_client": "chrony",
-    "servers": [
-      "0.int.pool.ntp.org",
-      "1.int.pool.ntp.org"
-    ],
-    "pools": [
-      "2.int.pool.ntp.org"
-    ]
   },
   "resize_rootfs":true,
   "power_state": {

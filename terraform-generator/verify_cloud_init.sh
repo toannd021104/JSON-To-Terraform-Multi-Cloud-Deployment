@@ -1,5 +1,4 @@
 #!/bin/bash
-# Script to verify cloud-init integration in generated Terraform projects
 
 echo "=========================================="
 echo "CLOUD-INIT INTEGRATION VERIFICATION"

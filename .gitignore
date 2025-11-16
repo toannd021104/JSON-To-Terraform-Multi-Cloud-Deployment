@@ -77,5 +77,6 @@ coverage/
 !~/.aws/config
 *.pdf
 
-.terraform-projects/*
-benchmark_logs/*
+# Folder for generated terraform projects and benchmark logs
+terraform-projects/
+benchmark_logs/
