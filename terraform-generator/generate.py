@@ -4,6 +4,10 @@ import sys
 import os
 import shutil
 from datetime import datetime
+
+# Add validators directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'validators'))
+
 from validate_json import validate_topology_file
 import terraform_templates as tf_tpl
 import subprocess

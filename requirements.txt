@@ -1,0 +1,10 @@
+# AI Generator dependencies
+typer>=0.20.0
+rich>=14.2.0
+questionary>=2.1.1
+openai>=2.8.1
+
+# Terraform generator dependencies (if needed)
+boto3
+python-openstackclient
+jsonschema

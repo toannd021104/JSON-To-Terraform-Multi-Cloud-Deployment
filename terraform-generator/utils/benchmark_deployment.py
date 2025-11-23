@@ -74,14 +74,15 @@ class DeploymentBenchmark:
 
         start_time = time.time()
 
-        # Run generate.py
-        cmd = ["python3", "generate.py", self.provider, str(self.num_copies)]
+        # Run generate.py (in parent directory)
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        generate_path = os.path.join(parent_dir, "generate.py")
+        cmd = ["python3", generate_path, self.provider, str(self.num_copies)]
         print(f"Running: {' '.join(cmd)}")
         print("-" * 70)
 
         result = subprocess.run(
             cmd,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
             capture_output=False,
             text=True
         )
@@ -145,8 +146,10 @@ class DeploymentBenchmark:
 
         start_time = time.time()
 
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        run_terraform_path = os.path.join(parent_dir, "run_terraform.py")
         result = subprocess.run(
-            ["python3", "run_terraform.py", "destroy"],
+            ["python3", run_terraform_path, "destroy"],
             cwd=str(self.project_folder),
             capture_output=False,
             text=True

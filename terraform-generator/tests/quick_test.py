@@ -23,9 +23,10 @@ def main():
     print("=" * 70)
 
     # Run benchmark with auto-cleanup and prompt at the end
-    cmd = ["python3", "benchmark_deployment.py", provider, num_copies]
+    benchmark_path = Path(__file__).parent.parent / "utils" / "benchmark_deployment.py"
+    cmd = ["python3", str(benchmark_path), provider, num_copies]
 
-    subprocess.run(cmd, cwd=Path(__file__).parent)
+    subprocess.run(cmd)
 
 
 if __name__ == "__main__":
