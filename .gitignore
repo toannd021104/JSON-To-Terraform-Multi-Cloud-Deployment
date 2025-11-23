@@ -38,6 +38,12 @@ __pycache__/
 .terraform/
 .terraform.lock.hcl
 
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv/
+
 # Node.js
 node_modules/
 npm-debug.log*

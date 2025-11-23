@@ -6,7 +6,9 @@ from typing import List, Dict
 
 def load_openstack_credentials():
     """Load OpenStack credentials from dacn-openrc.sh"""
-    openrc_path = os.path.join(os.path.dirname(__file__), "dacn-openrc.sh")
+    # Path to scripts directory: validators/ -> terraform-generator/ -> scripts/
+    parent_dir = os.path.dirname(os.path.dirname(__file__))
+    openrc_path = os.path.join(parent_dir, "scripts", "dacn-openrc.sh")
     if not os.path.exists(openrc_path):
         print(f"\nWarning: {openrc_path} not found")
         return
