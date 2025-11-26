@@ -17,8 +17,39 @@ except ImportError:
     RICH_AVAILABLE = False
     console = None
 
+# Store error messages for display after parallel execution
+error_messages = {}
+# Store success summaries (resources added/changed/destroyed)
+success_summaries = {}
+
+import re
+
+def parse_terraform_summary(output):
+    """Parse terraform output to extract resource summary"""
+    summary = {"added": 0, "changed": 0, "destroyed": 0}
+
+    # Match patterns like "Apply complete! Resources: 5 added, 0 changed, 0 destroyed."
+    # Or "Destroy complete! Resources: 3 destroyed."
+    match = re.search(r'(\d+)\s+added', output)
+    if match:
+        summary["added"] = int(match.group(1))
+
+    match = re.search(r'(\d+)\s+changed', output)
+    if match:
+        summary["changed"] = int(match.group(1))
+
+    match = re.search(r'(\d+)\s+destroyed', output)
+    if match:
+        summary["destroyed"] = int(match.group(1))
+
+    return summary
+
+# Store live logs for display
+live_logs = {}
+
 # Run a Terraform command inside a specific folder (thread-safe version)
 def run_command_safe(folder, command):
+    global error_messages, success_summaries, live_logs
     try:
         if not RICH_AVAILABLE:
             print(f"\nProcessing {folder.name}...")
@@ -29,8 +60,10 @@ def run_command_safe(folder, command):
             cmd = ["terraform", "init"]
             result = subprocess.run(cmd, cwd=str(folder.absolute()), capture_output=True, text=True)
             exit_code = result.returncode
-            if exit_code != 0 and not RICH_AVAILABLE:
-                print(f"Error: terraform init failed in {folder.name}")
+            if exit_code != 0:
+                error_messages[folder.name] = result.stderr or result.stdout
+                if not RICH_AVAILABLE:
+                    print(f"Error: terraform init failed in {folder.name}")
             return exit_code
 
         # For commands that modify state, ensure modules/providers are installed first
@@ -39,6 +72,7 @@ def run_command_safe(folder, command):
                 print(f"Running 'terraform init' in {folder.name} before '{command}'...")
             init_result = subprocess.run(["terraform", "init"], cwd=str(folder.absolute()), capture_output=True, text=True)
             if init_result.returncode != 0:
+                error_messages[folder.name] = init_result.stderr or init_result.stdout
                 if not RICH_AVAILABLE:
                     print(f"Error: terraform init failed in {folder.name}; skipping {command}.")
                 return init_result.returncode
@@ -49,22 +83,44 @@ def run_command_safe(folder, command):
         else:
             cmd = ["terraform", command]
 
-        result = subprocess.run(
+        # Stream output in real-time
+        full_output = []
+        process = subprocess.Popen(
             cmd,
             cwd=str(folder.absolute()),
-            capture_output=True,
-            text=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
         )
 
-        exit_code = result.returncode
+        # Read output line by line
+        for line in process.stdout:
+            line = line.rstrip()
+            full_output.append(line)
+            # Store latest lines for live display
+            live_logs[folder.name] = full_output[-3:]  # Keep last 3 lines
 
-        # Print error message if command failed
-        if exit_code != 0 and not RICH_AVAILABLE:
-            print(f"Error in {folder.name}")
+        process.wait()
+        exit_code = process.returncode
+        output_text = "\n".join(full_output)
+
+        # Store error message if command failed
+        if exit_code != 0:
+            error_messages[folder.name] = output_text
+            if not RICH_AVAILABLE:
+                print(f"Error in {folder.name}")
+        else:
+            # Parse and store success summary
+            success_summaries[folder.name] = parse_terraform_summary(output_text)
+
+        # Clear live log
+        live_logs.pop(folder.name, None)
 
         return exit_code
 
     except Exception as e:
+        error_messages[folder.name] = str(e)
         if not RICH_AVAILABLE:
             print(f"Error processing {folder}: {str(e)}")
         return 1
@@ -75,6 +131,10 @@ def run_command(folder, command):
 
 # Run the command in parallel for all matching folders
 def run_parallel(command):
+    global error_messages, success_summaries, live_logs
+    error_messages = {}  # Clear previous errors
+    success_summaries = {}  # Clear previous summaries
+    live_logs = {}  # Clear live logs
 
     current_dir = Path.cwd()
 
@@ -118,7 +178,8 @@ def run_parallel(command):
                     init_result = subprocess.run(
                         ["terraform", "init"],
                         cwd=str(shared_vpc.absolute()),
-                        capture_output=True
+                        capture_output=True,
+                        text=True
                     )
             else:
                 init_result = subprocess.run(
@@ -129,6 +190,7 @@ def run_parallel(command):
             if init_result.returncode != 0:
                 if RICH_AVAILABLE:
                     console.print("[red]✗[/red] terraform init failed in 00-shared-vpc")
+                    console.print(f"\n[red]Error:[/red]\n{init_result.stderr or init_result.stdout}")
                 else:
                     print(f"\nERROR: terraform init failed in 00-shared-vpc")
                 return
@@ -144,7 +206,8 @@ def run_parallel(command):
                 result = subprocess.run(
                     cmd,
                     cwd=str(shared_vpc.absolute()),
-                    capture_output=True
+                    capture_output=True,
+                    text=True
                 )
         else:
             result = subprocess.run(
@@ -156,6 +219,14 @@ def run_parallel(command):
         if result.returncode != 0:
             if RICH_AVAILABLE:
                 console.print(f"[red]✗[/red] Shared VPC {command} failed")
+                error_output = result.stderr or result.stdout
+                if error_output:
+                    console.print(f"\n[red]Error:[/red]")
+                    for line in error_output.strip().split('\n')[-20:]:
+                        if "Error" in line or "error" in line:
+                            console.print(f"[red]{line}[/red]")
+                        else:
+                            console.print(f"[dim]{line}[/dim]")
             else:
                 print(f"\nERROR: Shared VPC {command} failed! Stopping execution.")
             return
@@ -175,45 +246,111 @@ def run_parallel(command):
             for folder in folders:
                 results_data[folder.name] = "pending"
 
-            # Run commands in parallel and track progress
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("{task.completed}/{task.total}"),
-                console=console
-            ) as progress:
-                task = progress.add_task(f"[cyan]terraform {command}", total=len(folders))
+            # Import for live display
+            from rich.layout import Layout
+            from rich.text import Text
+            import time
+            import threading
 
+            # Run commands in parallel with live log display
+            results = []
+            completed = [0]  # Use list to allow modification in nested function
+
+            def build_live_display():
+                """Build the live display with progress and logs"""
+                lines = []
+                # Progress line
+                lines.append(f"[cyan]terraform {command}[/cyan] {completed[0]}/{len(folders)}")
+                lines.append("")
+
+                # Show live logs for each running folder
+                for folder_name, log_lines in list(live_logs.items()):
+                    lines.append(f"[yellow]► {folder_name}[/yellow]")
+                    for log_line in log_lines:
+                        # Truncate long lines
+                        if len(log_line) > 80:
+                            log_line = log_line[:77] + "..."
+                        lines.append(f"  [dim]{log_line}[/dim]")
+                    lines.append("")
+
+                return "\n".join(lines) if lines else "[dim]Starting...[/dim]"
+
+            with Live(build_live_display(), console=console, refresh_per_second=4) as live:
                 with ThreadPoolExecutor() as executor:
                     futures = {executor.submit(run_command_safe, f, command): f for f in folders}
-                    results = []
-                    for future in futures:
-                        result = future.result()
-                        folder = futures[future]
-                        results.append(result)
-                        results_data[folder.name] = "success" if result == 0 else "failed"
-                        progress.advance(task)
+
+                    while futures:
+                        # Update display
+                        live.update(build_live_display())
+
+                        # Check for completed futures
+                        done_futures = [f for f in futures if f.done()]
+                        for future in done_futures:
+                            folder = futures.pop(future)
+                            result = future.result()
+                            results.append(result)
+                            results_data[folder.name] = "success" if result == 0 else "failed"
+                            completed[0] += 1
+                            live.update(build_live_display())
+
+                        if futures:
+                            time.sleep(0.1)
 
             # Display results table
             console.print()
             table = Table(title="[bold]Results[/bold]", border_style="dim")
             table.add_column("Folder", style="cyan")
             table.add_column("Status", justify="center")
+            table.add_column("Added", justify="right", style="green")
+            table.add_column("Changed", justify="right", style="yellow")
+            table.add_column("Destroyed", justify="right", style="red")
 
             for folder_name, status in results_data.items():
                 if status == "success":
-                    table.add_row(folder_name, "[green]✓ Success[/green]")
+                    summary = success_summaries.get(folder_name, {})
+                    table.add_row(
+                        folder_name,
+                        "[green]✓ Success[/green]",
+                        str(summary.get("added", 0)),
+                        str(summary.get("changed", 0)),
+                        str(summary.get("destroyed", 0))
+                    )
                 else:
-                    table.add_row(folder_name, "[red]✗ Failed[/red]")
+                    table.add_row(folder_name, "[red]✗ Failed[/red]", "-", "-", "-")
             console.print(table)
 
             # Summary
             success = results.count(0)
+
+            # Calculate totals
+            total_added = sum(s.get("added", 0) for s in success_summaries.values())
+            total_changed = sum(s.get("changed", 0) for s in success_summaries.values())
+            total_destroyed = sum(s.get("destroyed", 0) for s in success_summaries.values())
+
             if success == len(folders):
                 console.print(f"\n[green bold]✓ All {len(folders)} folder(s) succeeded[/green bold]")
             else:
                 console.print(f"\n[yellow]{success}/{len(folders)} folder(s) succeeded[/yellow]")
+
+            # Show total resources
+            if total_added or total_changed or total_destroyed:
+                console.print(f"[dim]Total: [green]{total_added} added[/green], [yellow]{total_changed} changed[/yellow], [red]{total_destroyed} destroyed[/red][/dim]")
+
+            # Display error messages for failed folders
+            if error_messages:
+                console.print("\n[red bold]Error Details:[/red bold]")
+                for folder_name, error_msg in error_messages.items():
+                    console.print(f"\n[cyan]── {folder_name} ──[/cyan]")
+                    # Show last 30 lines of error to avoid flooding
+                    error_lines = error_msg.strip().split('\n')
+                    if len(error_lines) > 30:
+                        console.print("[dim]... (truncated, showing last 30 lines)[/dim]")
+                        error_lines = error_lines[-30:]
+                    for line in error_lines:
+                        if "Error" in line or "error" in line:
+                            console.print(f"[red]{line}[/red]")
+                        else:
+                            console.print(f"[dim]{line}[/dim]")
         else:
             print(f"\n=== Processing Instance Folders ===")
             print(f"Found {len(folders)} folder(s) to process:")
@@ -236,12 +373,21 @@ def run_parallel(command):
                 result = subprocess.run(
                     ["terraform", "destroy", "-auto-approve"],
                     cwd=str(shared_vpc.absolute()),
-                    capture_output=True
+                    capture_output=True,
+                    text=True
                 )
             if result.returncode == 0:
                 console.print("[green]✓[/green] Shared VPC destroyed")
             else:
                 console.print("[red]✗[/red] Failed to destroy shared VPC")
+                error_output = result.stderr or result.stdout
+                if error_output:
+                    console.print(f"\n[red]Error:[/red]")
+                    for line in error_output.strip().split('\n')[-20:]:
+                        if "Error" in line or "error" in line:
+                            console.print(f"[red]{line}[/red]")
+                        else:
+                            console.print(f"[dim]{line}[/dim]")
         else:
             print("\n=== Destroying Shared VPC ===")
             result = subprocess.run(
