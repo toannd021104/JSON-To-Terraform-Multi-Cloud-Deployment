@@ -5,6 +5,8 @@ import sys
 from typing import Any, Dict
 import yaml
 from validate_cloudinit import validate
+import hashlib
+import re
 
 class literal_str(str):
     """Custom string class để force YAML dùng | style"""
@@ -29,6 +31,13 @@ def inline_dict_representer(dumper, data):
 yaml.add_representer(literal_str, literal_presenter)
 yaml.add_representer(InlineList, inline_list_representer)
 yaml.add_representer(InlineDict, inline_dict_representer)
+
+def parse_apt_version(ensure_value):
+    apt_version_pattern = r'^(\d+:)?[\d\.\+\~]+.*$'
+    
+    if ensure_value not in ["present", "latest", "absent"] and re.match(apt_version_pattern, ensure_value):
+        return True, ensure_value
+    return False, None
 
 def convert_to_cloudbase_init(data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -289,7 +298,7 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
     if "groups" in data and data["groups"]:
         cloud_config["groups"] = data["groups"]
     
-    # Users section (Okay)
+    # Users section
     if "users" in data:
         users = []
         for u in data["users"]:
@@ -336,7 +345,7 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
         if users:
             cloud_config["users"] = users
     
-    # Package section (apt issue)
+    # Package section
     if "package" in data:
         packages = []
         package_upgrade = False
@@ -347,27 +356,41 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
 
         for pkg in data["package"]:
             pkg_name = pkg["name"]
-            ensure = pkg["ensure"]
-            manager = pkg.get("manager", "apt")
+            ensure = pkg.get("ensure", "latest")
+            manager = pkg.get("manager", "apt-get")
             options = pkg.get("options", [])
+            
+            # Check if ensure is a version string
+            is_version, version_string = parse_apt_version(ensure)
+            
+            # Override version if ensure contains apt version format
+            if is_version:
+                pkg["version"] = version_string
+                ensure = "present"  # Treat as present with specific version
 
             if ensure in ["present", "latest"]:
                 if ensure == "latest":
                     package_upgrade = True
 
                 if pkg.get("version"):
-                    packages.append(f"{pkg_name}={pkg['version']}")
+                    # Use cloud-init array format: [package_name, version]
+                    packages.append(InlineList([pkg_name, pkg["version"]]))
                 else:
                     packages.append(pkg_name)
 
                 if pkg.get("source"):
                     apt_source_needed.append(pkg)
 
+                # If has special options, use runcmd instead of packages
                 if options or pkg.get("configfiles") or pkg.get("mark_hold") or pkg.get("adminfile"):
+                    # Remove from packages list if already added
                     if pkg_name in packages:
                         packages.remove(pkg_name)
-                    if pkg.get("version") and f"{pkg_name}={pkg['version']}" in packages:
-                        packages.remove(f"{pkg_name}={pkg['version']}")
+                    
+                    # Remove versioned package if exists
+                    for p in packages[:]:
+                        if isinstance(p, (list, InlineList)) and p[0] == pkg_name:
+                            packages.remove(p)
 
                     cmd_parts = [manager]
 
@@ -468,21 +491,40 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
                 # cloud_config["runcmd"].extend(cmd_parts)
                 cloud_config["runcmd"].append(InlineList(cmd_parts))
     
-    # Exec section (Not okay)
+    # Exec section
     if "exec" in data:
         if "runcmd" not in cloud_config:
             cloud_config["runcmd"] = []
         
-        for ex in data["exec"]:
-            # Handle both string and object format
+        for idx, ex in enumerate(data["exec"]):
+            # Handle simple string command - chạy trực tiếp
             if isinstance(ex, str):
-                # Simple string command
-                cloud_config["runcmd"].append(InlineList(["sh", "-c", ex]))
+                cloud_config["runcmd"].append(ex)
                 continue
             
-            # Object format with advanced options
+            # Object format - check if simple or complex
             cmd = ex["command"]
+            
+            # Nếu chỉ có command đơn giản (không có user, timeout, conditions...)
+            is_simple = not any([
+                ex.get("user"),
+                ex.get("timeout"),
+                ex.get("umask"),
+                ex.get("environment"),
+                ex.get("cwd"),
+                ex.get("creates"),
+                ex.get("onlyif"),
+                ex.get("unless")
+            ])
+            
+            if is_simple:
+                cloud_config["runcmd"].append(cmd)
+                continue
+            
+            # Complex command - dùng write_files
             script_parts = []
+            script_parts.append("#!/bin/bash")
+            script_parts.append("set -e")  # Exit on error
             
             # 1. Add umask
             if ex.get("umask"):
@@ -497,66 +539,115 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
             if ex.get("cwd"):
                 script_parts.append(f"cd {ex['cwd']}")
             
-            # 4. Build conditional checks
+            # 4. Build conditional wrapper
             conditions = []
-            
+
             if ex.get("creates"):
                 conditions.append(f"[ ! -e {ex['creates']} ]")
-            
+
             if ex.get("onlyif"):
-                conditions.append(f"({ex['onlyif']})")
-            
+                onlyif_cmd = ex['onlyif'].strip()
+                if onlyif_cmd.startswith("test "):
+                    conditions.append(f"[ {onlyif_cmd[5:]} ]")
+                elif onlyif_cmd.startswith("[ "):
+                    conditions.append(onlyif_cmd)
+                else:
+                    conditions.append(f"[ $({onlyif_cmd}; echo $?) -eq 0 ]")
+
             if ex.get("unless"):
-                conditions.append(f"! ({ex['unless']})")
+                unless_cmd = ex['unless'].strip()
+                if unless_cmd.startswith("test "):
+                    conditions.append(f"[ ! {unless_cmd[5:]} ]")
+                elif unless_cmd.startswith("[ "):
+                    inner = unless_cmd[1:-1].strip()  # Bỏ [ ]
+                    conditions.append(f"[ ! ( {inner} ) ]")
+                else:
+                    conditions.append(f"[ $({unless_cmd}; echo $?) -ne 0 ]")
             
             # 5. Combine conditions with command
             if conditions:
-                script_parts.append(" && ".join(conditions) + f" && {cmd}")
+                script_parts.append("if " + " && ".join(conditions) + "; then")
+                script_parts.append(f"  {cmd}")
+                script_parts.append("fi")
             else:
                 script_parts.append(cmd)
             
-            # 6. Join all parts with &&
-            full_script = " && ".join(script_parts)
+            # Generate script content
+            script_content = "\n".join(script_parts)
             
-            # 7. Run as different user (nếu có và không phải root)
+            # Create unique script filename
+            script_hash = hashlib.md5(script_content.encode()).hexdigest()[:8]
+            script_path = f"/tmp/cloud-init-exec-{idx}-{script_hash}.sh"
+            
+            # Add to write_files
+            if "write_files" not in cloud_config:
+                cloud_config["write_files"] = []
+            
+            cloud_config["write_files"].append({
+                "path": script_path,
+                "permissions": "0755",
+                "owner": "root:root",
+                "content": literal_str(script_content + '\n')
+            })
+            
+            # Build runcmd - QUAN TRỌNG: phải là 1 string duy nhất
+            run_cmd = script_path
+            
+            # 7. Run as different user
             if ex.get("user") and ex["user"] != "root":
-                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
-                full_script = f'su -s /bin/bash {ex["user"]} -c "{escaped_script}"'
+                run_cmd = f"su -s /bin/bash {ex['user']} {script_path}"
             
-            # 8. Add timeout wrapper (nếu có)
+            # 8. Add timeout
             if ex.get("timeout"):
-                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
-                full_script = f'timeout {ex["timeout"]} sh -c "{escaped_script}"'
+                run_cmd = f"timeout {ex['timeout']} {run_cmd}"
             
-            # 9. Add retry logic (nếu có)
-            if ex.get("tries") and ex["tries"] > 1:
-                tries = ex["tries"]
-                sleep = ex.get("try_sleep", 5)
-                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
-                full_script = f'for i in $(seq 1 {tries}); do sh -c "{escaped_script}" && break || sleep {sleep}; done'
+            full_cmd = f'"{run_cmd}"'.replace('"', '')
             
-            # 10. Add to runcmd as [sh, -c, script]
-            cloud_config["runcmd"].append(InlineList(["sh", "-c", full_script]))
-
+            # 9. Add to runcmd - string phải được quote trong YAML
+            cloud_config["runcmd"].append(full_cmd)
             
     # SSH config section
     if "ssh_config" in data:
         ssh = data["ssh_config"]
         
-        if ssh.get("ssh_deletekeys"):
-            cloud_config["ssh_deletekeys"] = True
-        if ssh.get("ssh_genkeytypes"):
+        # ssh_deletekeys - default True theo doc
+        if "ssh_deletekeys" in ssh:
+            cloud_config["ssh_deletekeys"] = ssh["ssh_deletekeys"]
+        
+        # ssh_genkeytypes
+        if "ssh_genkeytypes" in ssh:
             cloud_config["ssh_genkeytypes"] = InlineList(ssh["ssh_genkeytypes"])
-        if ssh.get("disable_root"):
-            cloud_config["disable_root"] = True
-        if ssh.get("ssh_publish_hostkeys"):
+        
+        # ssh_quiet_keygen - default False theo doc
+        if "ssh_quiet_keygen" in ssh:
+            cloud_config["ssh_quiet_keygen"] = ssh["ssh_quiet_keygen"]
+        
+        # ssh_publish_hostkeys
+        if "ssh_publish_hostkeys" in ssh:
             ssh_publish = ssh["ssh_publish_hostkeys"]
             
-            if isinstance(ssh_publish, dict) and "blacklist" in ssh_publish:
+            if isinstance(ssh_publish, dict):
                 ssh_publish = ssh_publish.copy()
-                ssh_publish["blacklist"] = InlineList(ssh_publish["blacklist"])
+                if "blacklist" in ssh_publish:
+                    ssh_publish["blacklist"] = InlineList(ssh_publish["blacklist"])
             
             cloud_config["ssh_publish_hostkeys"] = ssh_publish
+        
+        # allow_public_ssh_keys - default True theo doc, phải check explicitly
+        if "allow_public_ssh_keys" in ssh:
+            cloud_config["allow_public_ssh_keys"] = ssh["allow_public_ssh_keys"]
+        
+        # disable_root - default True theo doc
+        if "disable_root" in ssh:
+            cloud_config["disable_root"] = ssh["disable_root"]
+        
+        # disable_root_opts
+        if "disable_root_opts" in ssh:
+            cloud_config["disable_root_opts"] = ssh["disable_root_opts"]
+        
+        # ssh_authorized_keys (nếu có trong config)
+        if "ssh_authorized_keys" in ssh:
+            cloud_config["ssh_authorized_keys"] = ssh["ssh_authorized_keys"]
     
     # Bootcmd section 
     if "bootcmd" in data:
@@ -609,8 +700,18 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 apt_config[key] = value
         
-        if apt_config:
-            cloud_config["apt"] = apt_config
+        cloud_config["apt"] = apt_config
+    else:
+        # Default APT config if not provided
+        cloud_config["apt"] = {
+            "preserve_sources_list": False,
+            "primary": [
+                {
+                    "arches": ["default"],
+                    "uri": "http://archive.ubuntu.com/ubuntu"
+                }
+            ]
+        }
 
     # Growpart section (Okay)
     if "growpart" in data and data["growpart"]:
@@ -739,7 +840,6 @@ def convert_to_cloud_config(data: Dict[str, Any]) -> Dict[str, Any]:
         cloud_config = convert_to_cloud_init(data)
     
     return cloud_config
-
 
 def main():
     parser = argparse.ArgumentParser(

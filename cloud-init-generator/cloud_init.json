@@ -1,12 +1,12 @@
 {
   "target" : "linux",
   "package_reboot_if_required": true,
-  "package_update": true,
+  "package_update": false,
   "package_upgrade": false,
   "hostname": "toanquoc",
   "preserve_hostname": false,
   "create_hostname_file": true,
-  "fqdn": "toanquoc.example.com",
+  "fqdn": "toanquocfpdn.example.com",
   "prefer_fqdn_over_hostname": false,
   "manage_etc_hosts": false,
   "timezone": "Asia/Ho_Chi_Minh",
@@ -46,14 +46,14 @@
       "lock_passwd": false
     },
     {
-  "name": "ubuntu1",
-  "gecos": "Ubuntu Test User",
-  "primary_group": "toanquoc",
-  "shell": "/bin/bash",
-  "lock_passwd": false,
-  "sudo": "ALL=(ALL) NOPASSWD:ALL",
-  "plain_passwd": "ubuntu"
-  }
+      "name": "ubuntu1",
+      "gecos": "Ubuntu Test User",
+      "primary_group": "toanquoc",
+      "shell": "/bin/bash",
+      "lock_passwd": false,
+      "sudo": "ALL=(ALL) NOPASSWD:ALL",
+      "plain_passwd": "ubuntu"
+    }
   ],
   "files": [
       {
@@ -104,30 +104,33 @@
         "--auto-remove",
         "-y"
       ]
+    },
+    {
+      "name": "git"
     }
   ],
   "exec": [
     {
-      "command": "echo 'Application installed successfully' > /opt/myapp/installed.flag",
-      "creates": "/opt/myapp/installed.flag",
-      "cwd": "/opt/myapp",
+      "command": "echo 'Test file created at '$(date) > /tmp/test-app.log",
+      "creates": "/tmp/test-app.log",
+      "cwd": "/tmp",
       "environment": [
-        "APP_ENV=production",
-        "INSTALL_DATE=$(date)"
+        "TEST_ENV=production",
+        "TEST_DATE=$(date +%Y%m%d)"
       ],
-      "onlyif": "test -d /opt/myapp",
+      "onlyif": "test -d /tmp",
       "umask": "0022",
-      "user": "ubuntu"
+      "timeout": 10
     },
     {
-      "command": "ls -lah /opt/myapp",
-      "unless": "test -f /opt/myapp/installed.flag"
+      "command": "echo 'Directory listing:' && ls -lah /tmp/test-*",
+      "unless": "test -f /tmp/test-app.log"
     },
     {
-      "command": "systemctl restart nginx",
-      "onlyif": "systemctl is-active nginx",
-      "user": "root"
-    }
+      "command": "echo 'System uptime:' && uptime > /tmp/uptime.log",
+      "onlyif": "test -w /tmp"
+    },
+    "echo 'Simple command without options'"
   ],
   "ssh_config": {
     "ssh_deletekeys": true,
@@ -144,7 +147,7 @@
     },
     "allow_public_ssh_keys": true,
     "disable_root": true,
-    "disable_root_opts": "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo Please login as the user \\\"$USER\\\" rather than \\\"$DISABLE_USER\\\";sleep 5;exit 142\""
+    "disable_root_opts": "no-port-forwarding,no-agent-forwarding,no-X11-forwarding"
   },
   "bootcmd": [
     ["mkdir", "-p", "/run/early-setup"],
@@ -168,10 +171,6 @@
       "mode": "reboot",
       "message": "Rebooting to apply package updates...",
       "timeout": 30,
-      "condition": [
-      "/usr/bin/test",
-      "-f",
-      "/var/run/reboot-required"
-      ]
+      "condition": [ "/usr/bin/test", "-f", "/var/run/reboot-required"]
   }
 }

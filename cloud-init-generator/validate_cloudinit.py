@@ -515,7 +515,7 @@ USER_DATA_SCHEMA = {
       "items": {
         "type": "object",
         "additionalProperties": False,
-        "required": ["name", "ensure"],
+        "required": ["name"],
         "properties": {
           "name": {
             "type": "string",
@@ -524,7 +524,8 @@ USER_DATA_SCHEMA = {
           },
           "ensure": {
             "type": "string",
-            "enum": ["present", "latest", "absent"]
+            "pattern": "^(present|latest|absent|(\\d+:)?[\\d\\.\\+\\~]+.*)$",
+            "description": "Package state (present/latest/absent) or apt version string"
           },
           "version": {
             "type": "string",
@@ -572,20 +573,16 @@ USER_DATA_SCHEMA = {
       }
     },
     "exec": {
-      "oneOf": [
-        {
-          "type": "array",
-          "minItems": 1,
-          "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Simple command string"
           },
-          "description": "List of commands to execute"
-        },
-        {
-          "type": "array",
-          "minItems": 1,
-          "items": {
+          {
             "type": "object",
             "additionalProperties": False,
             "required": ["command"],
@@ -597,13 +594,11 @@ USER_DATA_SCHEMA = {
               },
               "creates": {
                 "type": ["string", "null"],
-                "default": "",
-                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*|https?://[^\\s]+)$"
+                "default": ""
               },
               "cwd": {
                 "type": ["string", "null"],
-                "default": "",
-                "pattern": "^(|/[^\\s]*|[A-Za-z]:\\\\[^\\s]*)$"
+                "default": ""
               },
               "environment": {
                 "type": "array",
@@ -642,8 +637,7 @@ USER_DATA_SCHEMA = {
               },
               "umask": {
                 "type": ["string", "null"],
-                "default": "",
-                "pattern": "^(|[0-7]{3,4})$"
+                "default": ""
               },
               "user": {
                 "type": "string",
@@ -659,8 +653,8 @@ USER_DATA_SCHEMA = {
               }
             ]
           }
-        }
-      ]
+        ]
+      }
     },
     "ssh_config": {
       "type": "object",
