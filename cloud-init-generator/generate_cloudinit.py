@@ -4,7 +4,7 @@ import json
 import sys
 from typing import Any, Dict
 import yaml
-from validate_json import validate
+from validate_cloudinit import validate
 
 class literal_str(str):
     """Custom string class để force YAML dùng | style"""

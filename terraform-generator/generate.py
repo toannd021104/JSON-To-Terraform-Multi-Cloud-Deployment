@@ -13,6 +13,17 @@ import terraform_templates as tf_tpl
 import subprocess
 import cloud_init_processor
 
+# Rich library for beautiful CLI output
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    console = Console()
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+    console = None
+
 class TerraformGenerator:
     def __init__(self, provider, num_copies=1):
         self.provider = provider.lower()
@@ -22,44 +33,168 @@ class TerraformGenerator:
         self.run()
 
     def run(self):
-        print(f"\n=== Start generating files for {self.provider.upper()} ===")
+        if RICH_AVAILABLE:
+            console.print()
+            console.print(Panel.fit(
+                f"[bold cyan]Generating Terraform for {self.provider.upper()}[/bold cyan]\n"
+                f"[dim]Copies: {self.num_copies}[/dim]",
+                border_style="cyan"
+            ))
+        else:
+            print(f"\n=== Start generating files for {self.provider.upper()} ===")
+
         if not self.load_and_validate_topology():
             sys.exit(1)
         self.validate_resources()
         self.generate_configs()
-        print("\n=== COMPLETED ===")
+
+        if RICH_AVAILABLE:
+            console.print()
+            console.print(Panel.fit(
+                "[bold green]✓ Generation Complete[/bold green]",
+                border_style="green"
+            ))
+        else:
+            print("\n=== COMPLETED ===")
 
     def load_and_validate_topology(self):
         # Validate topology.json against schema and IP/CIDR logic
-        print("\nChecking topology.json...")
-        is_valid, errors = validate_topology_file("topology.json", self.provider)
+        if RICH_AVAILABLE:
+            with console.status("[dim]Validating topology.json...[/dim]", spinner="dots"):
+                is_valid, errors = validate_topology_file("topology.json", self.provider)
+        else:
+            print("\nChecking topology.json...")
+            is_valid, errors = validate_topology_file("topology.json", self.provider)
+
         if not is_valid:
-            print("\n=== VALIDATION ERROR ===")
-            for error in errors:
-                print(f"- {error}")
+            if RICH_AVAILABLE:
+                console.print("\n[red bold]✗ Validation Failed[/red bold]")
+                for error in errors:
+                    console.print(f"  [red]•[/red] {error}")
+            else:
+                print("\n=== VALIDATION ERROR ===")
+                for error in errors:
+                    print(f"- {error}")
             return False
+
         try:
             with open("topology.json", "r") as f:
                 self.topology = json.load(f)
-            print("Topology file is valid")
+            if RICH_AVAILABLE:
+                console.print("[green]✓[/green] Topology validated")
+            else:
+                print("Topology file is valid")
             return True
         except Exception as e:
-            print(f"\nError reading file: {str(e)}")
+            if RICH_AVAILABLE:
+                console.print(f"[red]✗[/red] Error reading file: {str(e)}")
+            else:
+                print(f"\nError reading file: {str(e)}")
             return False
 
     def validate_resources(self):
         # Validate cloud-specific resource names (e.g. image, flavor, AMI)
-        if self.provider == "aws":
-            from validate_aws import AWSUtils
-            self.validated_resources = AWSUtils().validate_resources(self.topology)
-        elif self.provider == "openstack":
-            from validate_openstack import validate_resources
-            self.validated_resources = validate_resources(self.topology)
-            if not self.validated_resources.get('valid', False):
+        if RICH_AVAILABLE:
+            with console.status(f"[dim]Validating {self.provider.upper()} resources...[/dim]", spinner="dots"):
+                if self.provider == "aws":
+                    from validate_aws import AWSUtils
+                    self.validated_resources = AWSUtils().validate_resources(self.topology)
+                elif self.provider == "openstack":
+                    from validate_openstack import validate_resources
+                    self.validated_resources = validate_resources(self.topology)
+        else:
+            if self.provider == "aws":
+                from validate_aws import AWSUtils
+                self.validated_resources = AWSUtils().validate_resources(self.topology)
+            elif self.provider == "openstack":
+                from validate_openstack import validate_resources
+                self.validated_resources = validate_resources(self.topology)
+
+        if self.provider == "openstack" and not self.validated_resources.get('valid', False):
+            if RICH_AVAILABLE:
+                console.print("\n[red bold]✗ Resource Validation Failed[/red bold]")
+                for msg in self.validated_resources.get('messages', []):
+                    console.print(f"  [red]•[/red] {msg}")
+            else:
                 print("\n=== RESOURCE VALIDATION FAILED ===")
                 for msg in self.validated_resources.get('messages', []):
                     print(f"- {msg}")
-                sys.exit(1)
+            sys.exit(1)
+
+        if RICH_AVAILABLE:
+            console.print(f"[green]✓[/green] Resources validated")
+            self._display_topology_summary()
+
+    def _display_topology_summary(self):
+        """Display topology summary in rich tables"""
+        if not RICH_AVAILABLE or not self.topology:
+            return
+
+        # Instances table
+        if self.topology.get("instances"):
+            console.print()
+            table = Table(
+                title="[bold]Instances[/bold]",
+                show_header=True,
+                header_style="bold cyan",
+                border_style="dim"
+            )
+            table.add_column("Name", style="cyan")
+            table.add_column("Image")
+            table.add_column("CPU", justify="right")
+            table.add_column("RAM", justify="right")
+            table.add_column("Networks")
+
+            for inst in self.topology["instances"]:
+                networks = ", ".join([n["name"] for n in inst.get("networks", [])])
+                table.add_row(
+                    inst["name"],
+                    inst.get("image", "-"),
+                    str(inst.get("cpu", "-")),
+                    f"{inst.get('ram', '-')}G",
+                    networks
+                )
+            console.print(table)
+
+        # Networks table
+        if self.topology.get("networks"):
+            console.print()
+            table = Table(
+                title="[bold]Networks[/bold]",
+                show_header=True,
+                header_style="bold cyan",
+                border_style="dim"
+            )
+            table.add_column("Name", style="cyan")
+            table.add_column("CIDR")
+            table.add_column("Gateway")
+
+            for net in self.topology["networks"]:
+                table.add_row(
+                    net["name"],
+                    net.get("cidr", "-"),
+                    net.get("gateway_ip", "-")
+                )
+            console.print(table)
+
+        # Routers table
+        if self.topology.get("routers"):
+            console.print()
+            table = Table(
+                title="[bold]Routers[/bold]",
+                show_header=True,
+                header_style="bold cyan",
+                border_style="dim"
+            )
+            table.add_column("Name", style="cyan")
+            table.add_column("External", justify="center")
+            table.add_column("Networks")
+
+            for router in self.topology["routers"]:
+                networks = ", ".join([f"{n['name']}({n['ip']})" for n in router.get("networks", [])])
+                external = "[green]Yes[/green]" if router.get("external") else "[dim]No[/dim]"
+                table.add_row(router["name"], external, networks)
+            console.print(table)
 
     def build_validated_map(self, suffix=""):
         # Build a dictionary of instance names mapped to validated resource info
@@ -142,7 +277,10 @@ class TerraformGenerator:
         shared_vpc_path = os.path.join(main_folder, "00-shared-vpc")
         os.makedirs(shared_vpc_path, exist_ok=True)
 
-        print(f"\n Creating shared VPC folder: {shared_vpc_path}")
+        if RICH_AVAILABLE:
+            console.print(f"\n[cyan]Creating shared VPC folder...[/cyan]")
+        else:
+            print(f"\n Creating shared VPC folder: {shared_vpc_path}")
 
         # Collect all networks and routers from all copies
         all_networks, all_routers = self.collect_all_networks_and_routers(original_topology, suffixes)
@@ -167,7 +305,10 @@ class TerraformGenerator:
         with open(os.path.join(shared_vpc_path, 'variables.tf'), 'w', encoding='utf-8') as f:
             f.write(variables_content)
 
-        print(f" Shared VPC folder created with {len(all_networks)} subnets for {self.num_copies} copies")
+        if RICH_AVAILABLE:
+            console.print(f"[green]✓[/green] Shared VPC: {len(all_networks)} subnets for {self.num_copies} copies")
+        else:
+            print(f" Shared VPC folder created with {len(all_networks)} subnets for {self.num_copies} copies")
         return all_networks, all_routers
 
     def generate_configs(self):
@@ -192,12 +333,18 @@ class TerraformGenerator:
             use_shared_vpc = True
 
         # Create instance folders with pre-generated suffixes
+        if RICH_AVAILABLE:
+            console.print(f"\n[cyan]Creating {len(suffixes)} instance folder(s)...[/cyan]")
+
         for suffix in suffixes:
             dir_name = f"{self.provider}_{suffix}"
             full_path = os.path.join(main_folder, dir_name)
             self.create_provider_directory(full_path, original_topology, suffix, use_shared_vpc)
 
         # Run `terraform apply` after generating all folders
+        if RICH_AVAILABLE:
+            console.print(f"\n[cyan]Running Terraform...[/cyan]")
+
         subprocess.run(
             ["python3", "run_terraform.py", "apply"],
             cwd=main_folder,
@@ -219,9 +366,18 @@ class TerraformGenerator:
             config_content = self.generate_config_content(validated_map, use_shared_vpc)
             with open(os.path.join(dir_path, 'main.tf'), 'w', encoding='utf-8') as f:
                 f.write(config_content)
-            print(f" Successfully created: {dir_path}")
+
+            folder_name = os.path.basename(dir_path)
+            if RICH_AVAILABLE:
+                console.print(f"  [green]✓[/green] {folder_name}")
+            else:
+                print(f" Successfully created: {dir_path}")
         except Exception as e:
-            print(f" Error creating {dir_path}: {str(e)}")
+            folder_name = os.path.basename(dir_path)
+            if RICH_AVAILABLE:
+                console.print(f"  [red]✗[/red] {folder_name}: {str(e)}")
+            else:
+                print(f" Error creating {dir_path}: {str(e)}")
             if os.path.exists(dir_path):
                 shutil.rmtree(dir_path)
 
@@ -278,13 +434,25 @@ class TerraformGenerator:
 
 # -------------------------- Entry Point --------------------------
 if __name__ == "__main__":
-    print("""
+    if RICH_AVAILABLE:
+        console.print()
+        console.print(Panel.fit(
+            "[bold blue]Terraform Config Generator[/bold blue]\n"
+            "[dim]Multi-Cloud Deployment Tool[/dim]",
+            border_style="blue"
+        ))
+    else:
+        print("""
 ========================
 TERRAFORM CONFIG GENERATOR
 ========================""")
 
     if len(sys.argv) < 2 or sys.argv[1].lower() not in ["aws", "openstack"]:
-        print("\n[ERROR] Usage: python3 generate.py [aws|openstack] [num_copies]")
+        if RICH_AVAILABLE:
+            console.print("\n[red]Error:[/red] Invalid usage")
+            console.print("[dim]Usage: python3 generate.py [aws|openstack] [num_copies][/dim]")
+        else:
+            print("\n[ERROR] Usage: python3 generate.py [aws|openstack] [num_copies]")
         sys.exit(1)
 
     provider = sys.argv[1].lower()
@@ -296,13 +464,22 @@ TERRAFORM CONFIG GENERATOR
             if num_copies < 1:
                 raise ValueError
         except ValueError:
-            print("\n[ERROR] Number of copies must be a positive integer")
+            if RICH_AVAILABLE:
+                console.print("[red]Error:[/red] Number of copies must be a positive integer")
+            else:
+                print("\n[ERROR] Number of copies must be a positive integer")
             sys.exit(1)
 
     try:
         TerraformGenerator(provider, num_copies)
     except KeyboardInterrupt:
-        print("\n=== PROGRAM TERMINATED ===")
+        if RICH_AVAILABLE:
+            console.print("\n[yellow]Interrupted[/yellow]")
+        else:
+            print("\n=== PROGRAM TERMINATED ===")
     except Exception as e:
-        print(f"\n=== UNEXPECTED ERROR ===\n{str(e)}")
+        if RICH_AVAILABLE:
+            console.print(f"\n[red bold]Error:[/red bold] {str(e)}")
+        else:
+            print(f"\n=== UNEXPECTED ERROR ===\n{str(e)}")
         sys.exit(1)

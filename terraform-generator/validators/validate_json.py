@@ -72,7 +72,23 @@ TOPOLOGY_SCHEMA = {
                         }
                     },
                     "external": {"type": "boolean"},
-                    "routes": {"type": "array"}
+                    "routes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["destination", "nexthop"],
+                            "properties": {
+                                "destination": {
+                                    "type": "string",
+                                    "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/[0-9]{1,2}$"
+                                },
+                                "nexthop": {
+                                    "type": "string",
+                                    "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -108,8 +124,8 @@ def validate_cloud_init_file(cloud_init_path: str, provider: str) -> str:
     Check if cloud-init JSON file exists in cloud-init-generator directory.
     The actual validation will be done by cloud_init_processor during generation.
     """
-    # Look for the file in cloud-init-generator directory
-    cloud_init_gen_dir = os.path.join(os.path.dirname(__file__), "..", "cloud-init-generator")
+    # Look for the file in cloud-init-generator directory (at project root)
+    cloud_init_gen_dir = os.path.join(os.path.dirname(__file__), "..", "..", "cloud-init-generator")
 
     # Try with the exact filename
     full_path = os.path.join(cloud_init_gen_dir, cloud_init_path)
@@ -196,6 +212,9 @@ def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[st
             errors.append(f"Network '{net_name}': Gateway IP '{gw_ip}' is outside CIDR")
 
     # Step 6: Validate routers
+    # Track router IPs per network to detect duplicates
+    router_ips = {}  # {network_name: set(ips)}
+
     for router in data.get("routers", []):
         for net in router.get("networks", []):
             net_name = net["name"]
@@ -209,10 +228,51 @@ def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[st
                 errors.append(f"Router '{router['name']}': IP '{ip}' is invalid")
                 continue
 
-            if ip != network_info[net_name]["gateway_ip"]:
-                errors.append(f"Router '{router['name']}': IP '{ip}' must match the gateway IP of network '{net_name}'")
+            # Check router IP is within network CIDR
+            cidr = network_info[net_name]["cidr"]
+            if not check_ip_in_cidr(ip, cidr):
+                errors.append(f"Router '{router['name']}': IP '{ip}' is outside network '{net_name}' CIDR '{cidr}'")
+                continue
 
+            # Check for duplicate router IPs in same network
+            if net_name not in router_ips:
+                router_ips[net_name] = set()
+            if ip in router_ips[net_name]:
+                errors.append(f"Router '{router['name']}': IP '{ip}' is already used by another router in network '{net_name}'")
+            router_ips[net_name].add(ip)
+
+            # Check router IP doesn't conflict with instance IPs
             if net_name in used_ips and ip in used_ips[net_name]:
-                errors.append(f"Router '{router['name']}': IP '{ip}' is already used in network '{net_name}'")
+                errors.append(f"Router '{router['name']}': IP '{ip}' conflicts with an instance IP in network '{net_name}'")
+
+    # Step 7: Validate static routes
+    for router in data.get("routers", []):
+        router_networks = {net["name"]: net["ip"] for net in router.get("networks", [])}
+
+        for route in router.get("routes", []):
+            dest = route.get("destination", "")
+            nexthop = route.get("nexthop", "")
+
+            # Validate destination CIDR
+            if not validate_cidr(dest):
+                errors.append(f"Router '{router['name']}': Route destination '{dest}' is not a valid CIDR")
+                continue
+
+            # Validate nexthop IP
+            if not validate_ip(nexthop):
+                errors.append(f"Router '{router['name']}': Route nexthop '{nexthop}' is not a valid IP")
+                continue
+
+            # Check nexthop is reachable (must be in one of router's connected networks)
+            nexthop_reachable = False
+            for net_name in router_networks:
+                if net_name in network_info:
+                    net_cidr = network_info[net_name]["cidr"]
+                    if check_ip_in_cidr(nexthop, net_cidr):
+                        nexthop_reachable = True
+                        break
+
+            if not nexthop_reachable:
+                errors.append(f"Router '{router['name']}': Route nexthop '{nexthop}' is not reachable from any connected network")
 
     return (len(errors) == 0, errors)

@@ -8,10 +8,19 @@ import sys
 import subprocess
 from typing import Optional, Dict
 
+# Rich library for beautiful CLI output
+try:
+    from rich.console import Console
+    console = Console()
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+    console = None
+
 # Path to cloud-init-generator directory
 CLOUD_INIT_GENERATOR_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
-    "terraform-generator"
+    "cloud-init-generator"
 )
 
 
@@ -67,7 +76,10 @@ def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> boo
         generator_script = os.path.join(CLOUD_INIT_GENERATOR_DIR, "generate_cloudinit.py")
 
         if not os.path.exists(generator_script):
-            print(f"    ✗ Generator script not found: {generator_script}")
+            if RICH_AVAILABLE:
+                console.print(f"      [red]✗[/red] Generator script not found")
+            else:
+                print(f"    ✗ Generator script not found: {generator_script}")
             return False
 
         # Build command: python3 generate_cloudinit.py input.json -o output.yaml
@@ -87,22 +99,31 @@ def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> boo
         )
 
         if result.returncode != 0:
-            print(f"    ✗ Generator failed:")
-            if result.stderr:
-                print(f"      {result.stderr}")
+            if RICH_AVAILABLE:
+                console.print(f"      [red]✗[/red] Generator failed")
+            else:
+                print(f"    ✗ Generator failed:")
+                if result.stderr:
+                    print(f"      {result.stderr}")
             return False
 
         # Check if output file was created
         if not os.path.exists(output_path):
-            print(f"    ✗ Output file was not created: {output_path}")
+            if RICH_AVAILABLE:
+                console.print(f"      [red]✗[/red] Output file not created")
+            else:
+                print(f"    ✗ Output file was not created: {output_path}")
             return False
 
         return True
 
     except Exception as e:
-        print(f"    ✗ Error running generator: {e}")
-        import traceback
-        traceback.print_exc()
+        if RICH_AVAILABLE:
+            console.print(f"      [red]✗[/red] Error: {e}")
+        else:
+            print(f"    ✗ Error running generator: {e}")
+            import traceback
+            traceback.print_exc()
         return False
 
 
@@ -123,23 +144,31 @@ def process_cloud_init(
 
     Returns: True if successful, False otherwise
     """
-    print(f"\n  → Processing cloud-init for instance '{instance_name}':")
+    if RICH_AVAILABLE:
+        console.print(f"    [dim]•[/dim] {instance_name}: ", end="")
+    else:
+        print(f"\n  → Processing cloud-init for instance '{instance_name}':")
+        print(f"    • Looking for cloud-init file: {cloud_init_filename}")
 
     # Step 1: Find the cloud-init JSON file
-    print(f"    • Looking for cloud-init file: {cloud_init_filename}")
     json_path = find_cloud_init_json(cloud_init_filename)
 
     if not json_path:
-        print(f"    ✗ Cloud-init file not found: {cloud_init_filename}")
-        print(f"      Searched in: {CLOUD_INIT_GENERATOR_DIR}")
+        if RICH_AVAILABLE:
+            console.print(f"[red]✗ not found[/red]")
+        else:
+            print(f"    ✗ Cloud-init file not found: {cloud_init_filename}")
+            print(f"      Searched in: {CLOUD_INIT_GENERATOR_DIR}")
         return False
 
-    print(f"    ✓ Found: {json_path}")
+    if not RICH_AVAILABLE:
+        print(f"    ✓ Found: {json_path}")
 
     # Step 2: Detect OS type
     os_type = detect_os_type(image_name)
     config_type = "cloudbase-init" if os_type == 'windows' else "cloud-config"
-    print(f"    • Detected OS: {os_type} → Using {config_type}")
+    if not RICH_AVAILABLE:
+        print(f"    • Detected OS: {os_type} → Using {config_type}")
 
     # Step 3: Create cloud_init directory if it doesn't exist
     cloud_init_dir = os.path.join(output_dir, "cloud_init")
@@ -151,15 +180,22 @@ def process_cloud_init(
     output_path = os.path.join(cloud_init_dir, output_filename)
 
     # Step 5: Generate cloud-config using external script
-    print(f"    • Generating {config_type} (validation + conversion)...")
+    if not RICH_AVAILABLE:
+        print(f"    • Generating {config_type} (validation + conversion)...")
     success = generate_cloud_config(json_path, os_type, output_path)
 
     if not success:
-        print(f"    ✗ Failed to generate {config_type}")
+        if RICH_AVAILABLE:
+            console.print(f"[red]✗ failed[/red]")
+        else:
+            print(f"    ✗ Failed to generate {config_type}")
         return False
 
-    print(f"    ✓ Generated: {output_filename}")
-    print(f"      Saved to: {output_path}")
+    if RICH_AVAILABLE:
+        console.print(f"[green]✓[/green]")
+    else:
+        print(f"    ✓ Generated: {output_filename}")
+        print(f"      Saved to: {output_path}")
 
     return True
 
@@ -180,7 +216,10 @@ def process_all_instances(topology: Dict, validated_resources: Dict, output_dir:
     if not validated_resources or 'instances' not in validated_resources:
         return cloud_init_map
 
-    print("\n=== Processing Cloud-Init Configurations ===")
+    if RICH_AVAILABLE:
+        console.print(f"\n[cyan]Processing cloud-init...[/cyan]")
+    else:
+        print("\n=== Processing Cloud-Init Configurations ===")
 
     # Create a map of original names to validated resources
     validated_map = {}
@@ -204,7 +243,10 @@ def process_all_instances(topology: Dict, validated_resources: Dict, output_dir:
                 break
 
         if not original_name:
-            print(f"\n  ⚠ Warning: Could not find validated data for {instance_name}")
+            if RICH_AVAILABLE:
+                console.print(f"    [yellow]⚠[/yellow] {instance_name}: no validated data")
+            else:
+                print(f"\n  ⚠ Warning: Could not find validated data for {instance_name}")
             continue
 
         # Get validated resource data
@@ -227,7 +269,10 @@ def process_all_instances(topology: Dict, validated_resources: Dict, output_dir:
             cloud_init_map[instance_name] = f"{base_name}.yaml"
 
     if cloud_init_map:
-        print(f"\n✓ Successfully processed {len(cloud_init_map)} cloud-init configuration(s)")
+        if RICH_AVAILABLE:
+            console.print(f"[green]✓[/green] {len(cloud_init_map)} cloud-init config(s) processed")
+        else:
+            print(f"\n✓ Successfully processed {len(cloud_init_map)} cloud-init configuration(s)")
 
     return cloud_init_map
 

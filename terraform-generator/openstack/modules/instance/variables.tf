@@ -30,6 +30,19 @@ variable "security_groups" {
 }
 
 variable "floating_ip_address" {
-  type    = string
-  default = null
+  description = "Floating IP: string IP to use, or null to skip"
+  type        = string
+  default     = null
+}
+
+variable "floating_ip_enabled" {
+  description = "Whether to allocate a new floating IP (when floating_ip_address is null)"
+  type        = bool
+  default     = false
+}
+
+variable "external_network_name" {
+  description = "External network name for allocating floating IPs (e.g., 'external')"
+  type        = string
+  default     = "external"
 }
