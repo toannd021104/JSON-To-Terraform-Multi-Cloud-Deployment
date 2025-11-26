@@ -9,17 +9,18 @@ variable "networks" {
 }
 
 variable "routers" {
+  description = "List of routers with their network connections and static routes"
   type = list(object({
     name = string
     networks = list(object({
       name = string
-      ip = string
+      ip   = string
     }))
     external = bool
-    routes = list(object({
-      cidr_block = string
-      gateway_id = string
-    }))
+    routes = optional(list(object({
+      destination = string  # CIDR block (e.g., "0.0.0.0/0" for default route)
+      nexthop     = string  # Next hop IP address
+    })), [])
   }))
 }
 

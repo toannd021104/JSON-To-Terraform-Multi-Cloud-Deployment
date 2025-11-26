@@ -172,7 +172,8 @@ def os_locals_block():
     # Load topology data from a JSON file
     # ========================================
     locals {
-      topology = jsondecode(file("${path.root}/topology.json"))
+      topology              = jsondecode(file("${path.root}/topology.json"))
+      external_network_name = "external"  # Name of external network for floating IPs
     }
     """)
 
@@ -224,8 +225,13 @@ def os_instance_module_block(validated_map):
       # Configure SSH keypair and security groups (optional)
       key_pair        = lookup(each.value, "keypair", null)
       security_groups = lookup(each.value, "security_groups", ["default"])
-      # Assign floating IP if provided
-      floating_ip_address = lookup(each.value, "floating_ip", null)
+      # Floating IP configuration:
+      # - floating_ip: true  → allocate new IP from external network
+      # - floating_ip: "x.x.x.x" → use specific IP
+      # - floating_ip: false/null → no floating IP
+      floating_ip_enabled   = try(each.value.floating_ip == true, false)
+      floating_ip_address   = try(tostring(each.value.floating_ip), null) != "true" && try(tostring(each.value.floating_ip), null) != "false" ? try(tostring(each.value.floating_ip), null) : null
+      external_network_name = local.external_network_name
     }}
     """)
 

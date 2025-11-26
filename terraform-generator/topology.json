@@ -1,42 +1,69 @@
 {
   "instances": [
     {
-      "name": "vm1",
+      "name": "web-server",
       "image": "ubuntu-server-noble",
-      "cpu": 4,
-      "ram": 4,
-      "disk": 40,
+      "cpu": 2,
+      "ram": 2,
+      "disk": 20,
       "networks": [
-        {
-          "name": "net1",
-          "ip": "192.168.1.10"
-        }
+        {"name": "web-net", "ip": "192.168.1.10"}
       ],
       "keypair": "toanndcloud-keypair",
       "security_groups": ["default"],
-      "cloud_init": "cloud_init.json"
+      "cloud_init": "ubuntu-user.json"
+    },
+    {
+      "name": "db-server",
+      "image": "ubuntu-server-noble",
+      "cpu": 2,
+      "ram": 2,
+      "disk": 20,
+      "networks": [
+        {"name": "db-net", "ip": "192.168.2.10"}
+      ],
+      "keypair": "toanndcloud-keypair",
+      "security_groups": ["default"],
+      "cloud_init": "ubuntu-user.json"
     }
   ],
   "networks": [
     {
-      "name": "net1",
+      "name": "web-net",
       "cidr": "192.168.1.0/24",
-      "pool": [],
       "gateway_ip": "192.168.1.1",
-      "enable_dhcp": true
+      "enable_dhcp": true,
+      "pool": []
+    },
+    {
+      "name": "db-net",
+      "cidr": "192.168.2.0/24",
+      "gateway_ip": "192.168.2.1",
+      "enable_dhcp": true,
+      "pool": []
     }
   ],
   "routers": [
     {
-      "name": "R1",
+      "name": "edge-router",
       "networks": [
-        {
-          "name": "net1",
-          "ip": "192.168.1.1"
-        }
+        {"name": "web-net", "ip": "192.168.1.1"}
       ],
       "external": true,
-      "routes": []
+      "routes": [
+        {"destination": "192.168.2.0/24", "nexthop": "192.168.1.254"}
+      ]
+    },
+    {
+      "name": "internal-router",
+      "networks": [
+        {"name": "web-net", "ip": "192.168.1.254"},
+        {"name": "db-net", "ip": "192.168.2.1"}
+      ],
+      "external": false,
+      "routes": [
+        {"destination": "0.0.0.0/0", "nexthop": "192.168.1.1"}
+      ]
     }
   ]
 }

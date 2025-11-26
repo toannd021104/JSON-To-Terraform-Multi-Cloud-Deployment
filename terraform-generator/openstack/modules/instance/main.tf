@@ -25,9 +25,24 @@ resource "openstack_compute_instance_v2" "instance" {
   user_data = var.user_data                        # Optional cloud-init script
 }
 
-# Associate a floating IP with the instance if provided
-resource "openstack_compute_floatingip_associate_v2" "fip_assoc" {
-  # Only create if floating_ip_address is set
+# Allocate a new floating IP if enabled (floating_ip: true in topology)
+resource "openstack_networking_floatingip_v2" "fip" {
+  for_each = { for inst in [var.instance_name] : inst => inst if var.floating_ip_enabled && var.floating_ip_address == null }
+
+  pool = var.external_network_name  # External network name for floating IP allocation
+}
+
+# Associate floating IP with the instance
+# Case 1: Use allocated floating IP (when floating_ip: true)
+resource "openstack_compute_floatingip_associate_v2" "fip_assoc_allocated" {
+  for_each = { for inst in [var.instance_name] : inst => inst if var.floating_ip_enabled && var.floating_ip_address == null }
+
+  floating_ip = openstack_networking_floatingip_v2.fip[each.key].address
+  instance_id = openstack_compute_instance_v2.instance[each.key].id
+}
+
+# Case 2: Use specific floating IP address (when floating_ip: "x.x.x.x")
+resource "openstack_compute_floatingip_associate_v2" "fip_assoc_specific" {
   for_each = { for inst in [var.instance_name] : inst => inst if var.floating_ip_address != null }
 
   floating_ip = var.floating_ip_address
