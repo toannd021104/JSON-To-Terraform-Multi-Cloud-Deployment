@@ -172,8 +172,7 @@ def os_locals_block():
     # Load topology data from a JSON file
     # ========================================
     locals {
-      topology              = jsondecode(file("${path.root}/topology.json"))
-      external_network_name = "external"  # Name of external network for floating IPs
+      topology = jsondecode(file("${path.root}/topology.json"))
     }
     """)
 
@@ -198,7 +197,7 @@ def os_network_module_block():
       source              = "./modules/network"
       networks            = local.topology.networks
       routers             = local.topology.routers
-      external_network_id = "8990843f-fbc3-49f2-ad08-5eb9b263b23e"  # External (public) network ID
+      external_network_id = var.external_network_id
     }
     """)
 
@@ -231,7 +230,6 @@ def os_instance_module_block(validated_map):
       # - floating_ip: false/null → no floating IP
       floating_ip_enabled   = try(each.value.floating_ip == true, false)
       floating_ip_address   = try(tostring(each.value.floating_ip), null) != "true" && try(tostring(each.value.floating_ip), null) != "false" ? try(tostring(each.value.floating_ip), null) : null
-      external_network_name = local.external_network_name
     }}
     """)
 
