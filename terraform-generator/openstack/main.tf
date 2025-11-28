@@ -38,7 +38,7 @@ module "network" {
   source              = "./modules/network"
   networks            = local.topology.networks
   routers             = local.topology.routers
-  external_network_id = "8990843f-fbc3-49f2-ad08-5eb9b263b23e"  # External (public) network ID
+  external_network_id = var.external_network_id  # External network ID from variables
 }
 
 # ========================================
@@ -76,6 +76,14 @@ module "instance" {
   key_pair        = lookup(each.value, "keypair", null)
   security_groups = lookup(each.value, "security_groups", ["default"])
 
-  # Assign floating IP if provided
-  floating_ip_address = lookup(each.value, "floating_ip", null)
+  # Floating IP configuration:
+  # - true: allocate a new floating IP
+  # - false/null: no floating IP
+  # - "x.x.x.x": use specific floating IP address
+  floating_ip_enabled = lookup(each.value, "floating_ip", false) == true
+  floating_ip_address = (
+    lookup(each.value, "floating_ip", null) != null &&
+    lookup(each.value, "floating_ip", null) != true &&
+    lookup(each.value, "floating_ip", null) != false
+  ) ? each.value.floating_ip : null
 }
