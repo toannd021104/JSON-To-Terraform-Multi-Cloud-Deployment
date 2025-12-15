@@ -41,8 +41,3 @@ variable "floating_ip_enabled" {
   default     = false
 }
 
-variable "external_network_name" {
-  description = "External network name for allocating floating IPs (e.g., 'external')"
-  type        = string
-  default     = "external"
-}
