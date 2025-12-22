@@ -1,0 +1,131 @@
+{
+  "instances": [],
+  "networks": [
+    {
+      "name": "transit-top",
+      "cidr": "10.0.1.0/24",
+      "gateway_ip": "10.0.1.1",
+      "enable_dhcp": false,
+      "pool": []
+    },
+    {
+      "name": "link-1-3",
+      "cidr": "10.0.2.0/24",
+      "gateway_ip": "10.0.2.1",
+      "enable_dhcp": false,
+      "pool": []
+    },
+    {
+      "name": "link-2-4",
+      "cidr": "10.0.3.0/24",
+      "gateway_ip": "10.0.3.1",
+      "enable_dhcp": false,
+      "pool": []
+    },
+    {
+      "name": "transit-mid",
+      "cidr": "10.0.4.0/24",
+      "gateway_ip": "10.0.4.1",
+      "enable_dhcp": false,
+      "pool": []
+    },
+    {
+      "name": "link-3-5",
+      "cidr": "10.0.5.0/24",
+      "gateway_ip": "10.0.5.1",
+      "enable_dhcp": false,
+      "pool": []
+    },
+    {
+      "name": "link-4-6",
+      "cidr": "10.0.6.0/24",
+      "gateway_ip": "10.0.6.1",
+      "enable_dhcp": false,
+      "pool": []
+    },
+    {
+      "name": "transit-bottom",
+      "cidr": "10.0.7.0/24",
+      "gateway_ip": "10.0.7.1",
+      "enable_dhcp": false,
+      "pool": []
+    }
+  ],
+  "routers": [
+    {
+      "name": "R1",
+      "networks": [
+        {"name": "transit-top", "ip": "10.0.1.1"},
+        {"name": "link-1-3", "ip": "10.0.2.1"}
+      ],
+      "external": true,
+      "routes": [
+        {"destination": "10.0.4.0/24", "nexthop": "10.0.2.2"},
+        {"destination": "10.0.5.0/24", "nexthop": "10.0.2.2"},
+        {"destination": "10.0.7.0/24", "nexthop": "10.0.2.2"}
+      ]
+    },
+    {
+      "name": "R2",
+      "networks": [
+        {"name": "transit-top", "ip": "10.0.1.2"},
+        {"name": "link-2-4", "ip": "10.0.3.1"}
+      ],
+      "external": false,
+      "routes": [
+        {"destination": "0.0.0.0/0", "nexthop": "10.0.1.1"},
+        {"destination": "10.0.4.0/24", "nexthop": "10.0.3.2"},
+        {"destination": "10.0.6.0/24", "nexthop": "10.0.3.2"},
+        {"destination": "10.0.7.0/24", "nexthop": "10.0.3.2"}
+      ]
+    },
+    {
+      "name": "R3",
+      "networks": [
+        {"name": "link-1-3", "ip": "10.0.2.2"},
+        {"name": "transit-mid", "ip": "10.0.4.1"},
+        {"name": "link-3-5", "ip": "10.0.5.1"}
+      ],
+      "external": false,
+      "routes": [
+        {"destination": "0.0.0.0/0", "nexthop": "10.0.2.1"},
+        {"destination": "10.0.7.0/24", "nexthop": "10.0.5.2"}
+      ]
+    },
+    {
+      "name": "R4",
+      "networks": [
+        {"name": "link-2-4", "ip": "10.0.3.2"},
+        {"name": "transit-mid", "ip": "10.0.4.2"},
+        {"name": "link-4-6", "ip": "10.0.6.1"}
+      ],
+      "external": false,
+      "routes": [
+        {"destination": "0.0.0.0/0", "nexthop": "10.0.3.1"},
+        {"destination": "10.0.7.0/24", "nexthop": "10.0.6.2"}
+      ]
+    },
+    {
+      "name": "R5",
+      "networks": [
+        {"name": "link-3-5", "ip": "10.0.5.2"},
+        {"name": "transit-bottom", "ip": "10.0.7.1"}
+      ],
+      "external": false,
+      "routes": [
+        {"destination": "0.0.0.0/0", "nexthop": "10.0.5.1"}
+      ]
+    },
+    {
+      "name": "R6",
+      "networks": [
+        {"name": "link-4-6", "ip": "10.0.6.2"},
+        {"name": "transit-bottom", "ip": "10.0.7.2"}
+      ],
+      "external": false,
+      "routes": [
+        {"destination": "0.0.0.0/0", "nexthop": "10.0.6.1"}
+      ]
+    }
+  ]
+}

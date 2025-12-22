@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """
 AI-powered Topology Fixer
-Uses OpenAI GPT-4o-mini to analyze and fix validation errors in topology.json
+Uses Google Gemini to analyze and fix validation errors in topology.json
 Provides diff preview before applying changes
 """
 import os
 import json
 from typing import Tuple, List, Optional
 
-# OpenAI library for AI-powered fixes
+# Gemini library for AI-powered fixes
 try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
 except ImportError:
-    OPENAI_AVAILABLE = False
+    GEMINI_AVAILABLE = False
+    genai = None
+
+# Default model (can override with GEMINI_MODEL env var)
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 # Rich library for colored terminal output
 try:
@@ -28,7 +32,7 @@ except ImportError:
 
 
 # =============================================================================
-# AI System Prompt - Instructions for GPT-4o-mini
+# AI System Prompt - Instructions for Gemini
 # =============================================================================
 FIXER_PROMPT = """You are a cloud infrastructure expert. Your task is to FIX the topology.json file based on the validation errors provided.
 
@@ -73,28 +77,37 @@ Return ONLY the fixed JSON, no explanations, no markdown code blocks."""
 
 def fix_topology_with_ai(topology: dict, errors: List[str], api_key: Optional[str] = None) -> Tuple[bool, dict, List[str]]:
     """
-    Use GPT-4o-mini to fix topology.json based on validation errors
+    Use Gemini to fix topology.json based on validation errors
 
     Args:
         topology: Current topology dict
         errors: List of validation error messages
-        api_key: OpenAI API key (optional, uses env var if not provided)
+        api_key: Gemini API key (optional, uses env var if not provided)
 
     Returns:
         (success, fixed_topology, fixes_made)
     """
     # Check prerequisites
-    if not OPENAI_AVAILABLE:
-        return False, topology, ["OpenAI library not installed. Run: pip install openai"]
+    if not GEMINI_AVAILABLE:
+        return False, topology, ["google-generativeai not installed. Run: pip install google-generativeai"]
 
     if not api_key:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        return False, topology, ["OPENAI_API_KEY not set"]
+        return False, topology, ["GEMINI_API_KEY not set"]
 
     try:
-        client = OpenAI(api_key=api_key)
+        genai.configure(api_key=api_key)
+        model_name = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction=FIXER_PROMPT,
+            generation_config={
+                "temperature": 0.3,
+                "max_output_tokens": 4000
+            }
+        )
 
         # Build user prompt with topology and errors
         user_prompt = f"""Fix this topology.json based on the validation errors below.
@@ -107,30 +120,16 @@ VALIDATION ERRORS:
 
 Return the FIXED topology.json only."""
 
-        # Call OpenAI API with loading spinner
+        # Call Gemini API with loading spinner
         if RICH_AVAILABLE:
             with console.status("[dim]AI is analyzing and fixing errors...[/dim]", spinner="dots"):
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": FIXER_PROMPT},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=0.3,  # Low temperature = more deterministic output
-                    max_tokens=4000
-                )
+                response = model.generate_content(user_prompt)
         else:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": FIXER_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.3,
-                max_tokens=4000
-            )
+            response = model.generate_content(user_prompt)
 
-        result = response.choices[0].message.content.strip()
+        result = (response.text or "").strip()
+        if not result:
+            return False, topology, ["Gemini returned empty response"]
 
         # Strip markdown code blocks if AI included them
         if "```json" in result:

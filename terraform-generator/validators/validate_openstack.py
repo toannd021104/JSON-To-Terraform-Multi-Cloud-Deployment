@@ -110,32 +110,55 @@ def validate_resources(topology: Dict) -> Dict:
                     validation_result['valid'] = False
                     validation_result['messages'].append(f"Image '{instance['image']}' not found")
         
-        # Validate or generate flavor name
-        if all(k in instance for k in ['cpu', 'ram', 'disk']):
+        # Validate flavor - support both direct "flavor" field and cpu/ram/disk matching
+        if 'flavor' in instance:
+            # Direct flavor name specified
             if skip_validation:
-                # Generate a simple flavor name from specs
-                cpu = instance['cpu']
-                ram = int(instance['ram'] * 1024)  # GB to MB
-                disk = instance['disk']
-                instance_result['flavor'] = f"m1.{cpu}cpu-{ram}mb-{disk}gb"
+                instance_result['flavor'] = instance['flavor']
             else:
-                # Validate against available flavors
-                required_ram = instance['ram'] * 1024  # GB to MB
-                required_disk = instance['disk']  # GB
+                matched_flavor = next((flv for flv in flavors if flv['Name'] == instance['flavor']), None)
+                if matched_flavor:
+                    instance_result['flavor'] = matched_flavor['Name']
+                else:
+                    available = [f"{flv['Name']}({flv['VCPUs']}cpu,{flv['RAM']}MB,{flv['Disk']}GB)" for flv in flavors]
+                    validation_result['valid'] = False
+                    validation_result['messages'].append(
+                        f"Flavor '{instance['flavor']}' not found for {instance['name']}. Available: {', '.join(available)}"
+                    )
+        elif all(k in instance for k in ['cpu', 'ram', 'disk']):
+            # Match by CPU/RAM/Disk specs
+            required_cpu = instance['cpu']
+            required_ram = instance['ram'] * 1024  # GB to MB
+            required_disk = instance['disk']  # GB
 
+            if skip_validation:
+                # No flavors available, show error
+                validation_result['valid'] = False
+                validation_result['messages'].append(
+                    f"Cannot validate flavor for {instance['name']} - OpenStack API unavailable. "
+                    f"Use 'flavor' field directly instead of cpu/ram/disk."
+                )
+            else:
+                # Find best matching flavor
                 matched_flavor = next(
                     (flv for flv in flavors
-                     if int(flv['VCPUs']) == instance['cpu']
-                     and abs(int(flv['RAM']) - required_ram) <= 512
+                     if int(flv['VCPUs']) >= required_cpu
+                     and int(flv['RAM']) >= required_ram
                      and int(flv['Disk']) >= required_disk),
                     None
                 )
 
                 if matched_flavor:
                     instance_result['flavor'] = matched_flavor['Name']
+                    print(f"  {instance['name']}: matched flavor '{matched_flavor['Name']}' "
+                          f"({matched_flavor['VCPUs']}cpu, {matched_flavor['RAM']}MB, {matched_flavor['Disk']}GB)")
                 else:
+                    available = [f"{flv['Name']}({flv['VCPUs']}cpu,{flv['RAM']}MB,{flv['Disk']}GB)" for flv in flavors]
                     validation_result['valid'] = False
-                    validation_result['messages'].append(f"No suitable flavor found for {instance['name']}")
+                    validation_result['messages'].append(
+                        f"No flavor matches {instance['name']} specs (cpu={required_cpu}, ram={required_ram}MB, disk={required_disk}GB). "
+                        f"Available: {', '.join(available)}"
+                    )
 
         # Add cloud_init (null if not present)
         instance_result['cloud_init'] = instance.get('cloud_init', None)

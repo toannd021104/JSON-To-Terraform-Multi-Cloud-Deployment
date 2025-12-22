@@ -2,7 +2,7 @@
 """
 Terraform Config Generator
 Generates Terraform configurations from topology.json for AWS/OpenStack
-Supports AI-powered auto-fix for validation errors using GPT-4o-mini
+Supports AI-powered auto-fix for validation errors using Gemini
 """
 import json
 import uuid
@@ -16,13 +16,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'validators'))
 
 from validate_json import validate_topology_file
 
-# AI-powered fixer using OpenAI GPT-4o-mini
+# AI-powered fixer using Gemini
 try:
-    from ai_fixer import fix_topology_with_ai, display_fix_preview, apply_fix, OPENAI_AVAILABLE
+    from ai_fixer import fix_topology_with_ai, display_fix_preview, apply_fix, GEMINI_AVAILABLE
     AI_FIXER_AVAILABLE = True
 except ImportError:
     AI_FIXER_AVAILABLE = False
-    OPENAI_AVAILABLE = False
+    GEMINI_AVAILABLE = False
 
 import terraform_templates as tf_tpl
 import subprocess
@@ -144,7 +144,7 @@ class TerraformGenerator:
 
     def _try_ai_autofix(self, errors: list) -> bool:
         """
-        Attempt to fix topology errors using AI (GPT-4o-mini)
+        Attempt to fix topology errors using AI (Gemini)
         Shows diff preview and asks for user confirmation before applying
         """
         # Load current topology for AI analysis
@@ -157,16 +157,16 @@ class TerraformGenerator:
             return False
 
         # Check if AI fixer dependencies are available
-        if not AI_FIXER_AVAILABLE or not OPENAI_AVAILABLE:
+        if not AI_FIXER_AVAILABLE or not GEMINI_AVAILABLE:
             if RICH_AVAILABLE:
-                console.print("\n[dim]AI auto-fix not available (install openai: pip install openai)[/dim]")
+                console.print("\n[dim]AI auto-fix not available (install google-generativeai: pip install google-generativeai)[/dim]")
             return False
 
-        # Check for OpenAI API key
-        api_key = os.getenv("OPENAI_API_KEY")
+        # Check for Gemini API key
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             if RICH_AVAILABLE:
-                console.print("\n[dim]AI auto-fix not available (OPENAI_API_KEY not set)[/dim]")
+                console.print("\n[dim]AI auto-fix not available (GEMINI_API_KEY not set)[/dim]")
             return False
 
         # Prompt user for AI fix
@@ -174,7 +174,7 @@ class TerraformGenerator:
             console.print()
             console.print(Panel.fit(
                 "[bold yellow]AI Auto-Fix[/bold yellow]\n"
-                "[dim]Powered by GPT-4o-mini[/dim]",
+                "[dim]Powered by Gemini[/dim]",
                 border_style="yellow"
             ))
             try:

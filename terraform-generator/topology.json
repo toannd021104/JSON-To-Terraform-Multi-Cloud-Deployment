@@ -1,43 +1,127 @@
 {
   "instances": [
     {
-      "name": "test-vm",
-      "image": "ubuntu-server-noble",
-      "cpu": 1,
-      "ram": 0.5,
-      "disk": 5,
+      "name": "web-server",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
       "networks": [
         {
-          "name": "test-net",
+          "name": "web-net",
           "ip": "192.168.1.10"
         }
       ],
-      "keypair": "toanndcloud-keypair",
-      "security_groups": ["default"],
-      "floating_ip": "10.105.199.60",
-      "cloud_init": "ubuntu-user.json"
+      "keypair": "my-keypair",
+      "security_groups": [
+        "default"
+      ],
+      "floating_ip": true
+    },
+    {
+      "name": "app-server",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "networks": [
+        {
+          "name": "app-net",
+          "ip": "192.168.2.10"
+        }
+      ],
+      "keypair": "my-keypair",
+      "security_groups": [
+        "default"
+      ],
+      "floating_ip": false
+    },
+    {
+      "name": "db-server",
+      "image": "ubuntu-jammy",
+      "cpu": 2,
+      "ram": 4,
+      "disk": 20,
+      "networks": [
+        {
+          "name": "db-net",
+          "ip": "192.168.3.10"
+        }
+      ],
+      "keypair": "my-keypair",
+      "security_groups": [
+        "default"
+      ],
+      "floating_ip": false
     }
   ],
   "networks": [
     {
-      "name": "test-net",
+      "name": "web-net",
       "cidr": "192.168.1.0/24",
       "gateway_ip": "192.168.1.1",
+      "enable_dhcp": true,
+      "pool": []
+    },
+    {
+      "name": "app-net",
+      "cidr": "192.168.2.0/24",
+      "gateway_ip": "192.168.2.1",
+      "enable_dhcp": true,
+      "pool": []
+    },
+    {
+      "name": "db-net",
+      "cidr": "192.168.3.0/24",
+      "gateway_ip": "192.168.3.1",
       "enable_dhcp": true,
       "pool": []
     }
   ],
   "routers": [
     {
-      "name": "test-router",
+      "name": "edge-router",
       "networks": [
         {
-          "name": "test-net",
+          "name": "web-net",
           "ip": "192.168.1.1"
         }
       ],
       "external": true,
-      "routes": []
+      "routes": [
+        {
+          "destination": "192.168.2.0/24",
+          "nexthop": "192.168.1.254"
+        },
+        {
+          "destination": "192.168.3.0/24",
+          "nexthop": "192.168.1.254"
+        }
+      ]
+    },
+    {
+      "name": "internal-R1",
+      "networks": [
+        {
+          "name": "web-net",
+          "ip": "192.168.1.254"
+        },
+        {
+          "name": "app-net",
+          "ip": "192.168.2.1"
+        },
+        {
+          "name": "db-net",
+          "ip": "192.168.3.1"
+        }
+      ],
+      "external": false,
+      "routes": [
+        {
+          "destination": "0.0.0.0/0",
+          "nexthop": "192.168.1.1"
+        }
+      ]
     }
   ]
 }

@@ -17,12 +17,13 @@ try:
     from rich.table import Table
     from rich.markup import escape
     import questionary
-    from openai import OpenAI
+    import google.generativeai as genai
 except ImportError as e:
     print(f"Error: Missing required library: {e}")
     print("\nInstall dependencies:")
     print("  pip install typer rich questionary openai")
     sys.exit(1)
+
 
 app = typer.Typer(help="AI-powered Topology Generator for Multi-Cloud Deployment")
 console = Console()
@@ -95,61 +96,50 @@ EXAMPLES = [
 ]
 
 
-def generate_topology_with_ai(user_input: str, api_key: str) -> dict:
-    """Generate topology JSON using OpenAI API"""
 
-    client = OpenAI(api_key=api_key)
-
+def generate_topology_with_ai(user_input: str, api_key: str = None) -> dict:
+    """Generate topology JSON using Google Gemini API"""
+    if api_key is None:
+        api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        console.print("[red]Error:[/red] GEMINI_API_KEY not set. Please export your Gemini API key.")
+        raise typer.Exit(1)
+    genai.configure(api_key=api_key)
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        system_instruction=SYSTEM_PROMPT,
+        generation_config={
+            "temperature": 0.7,
+            "max_output_tokens": 4000
+        }
+    )
     with console.status("[dim]Generating topology with AI...", spinner="dots"):
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_input}
-                ],
-                temperature=0.7,
-                max_tokens=2000
-            )
-
-            result = response.choices[0].message.content.strip()
-
+            user_prompt = user_input
+            response = model.generate_content(user_prompt)
+            result = (response.text or "").strip()
             # Extract JSON if wrapped in markdown
             if "```json" in result:
-                result = result.split("```json")[1].split("```")[0].strip()
+                result = result.split("```json")[1].split("```", 1)[0].strip()
             elif "```" in result:
-                result = result.split("```")[1].split("```")[0].strip()
-
+                result = result.split("```", 1)[1].split("```", 1)[0].strip()
             topology = json.loads(result)
-
             # Validate that all required sections exist
             required_sections = ["instances", "networks", "routers"]
             missing_sections = [s for s in required_sections if s not in topology or not topology[s]]
-
             if missing_sections:
                 console.print(f"[yellow]Warning:[/yellow] AI output missing sections: {', '.join(missing_sections)}")
                 console.print("[dim]Retrying with more specific prompt...[/dim]")
-
-                # Retry with more specific prompt
                 retry_prompt = f"{user_input}\n\nIMPORTANT: Include instances, networks, AND routers sections in the output."
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": retry_prompt}
-                    ],
-                    temperature=0.5,
-                    max_tokens=2000
-                )
-                result = response.choices[0].message.content.strip()
+                response = model.generate_content(retry_prompt)
+                result = (response.text or "").strip()
                 if "```json" in result:
-                    result = result.split("```json")[1].split("```")[0].strip()
+                    result = result.split("```json")[1].split("```", 1)[0].strip()
                 elif "```" in result:
-                    result = result.split("```")[1].split("```")[0].strip()
+                    result = result.split("```", 1)[1].split("```", 1)[0].strip()
                 topology = json.loads(result)
-
             return topology
-
         except json.JSONDecodeError as e:
             console.print(f"[red]Error:[/red] Failed to parse JSON response")
             console.print(f"\n[dim]{result}[/dim]")
@@ -333,10 +323,11 @@ def generate(
         border_style="blue"
     ))
 
+
     # Check API key
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        console.print("\n[red]Error:[/red] OPENAI_API_KEY not set")
+        console.print("\n[red]Error:[/red] GEMINI_API_KEY not set")
         raise typer.Exit(1)
 
     # Generate

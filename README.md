@@ -1,148 +1,54 @@
-# 🌩️ JSON-To-Terraform Multi-Cloud Deployment
+# JSON-To-Terraform Multi-Cloud Deployment
 
-> 🚀 A framework that automatically **generates and deploys Terraform configurations** on **AWS** and **OpenStack** from a single **JSON topology file**, with built-in **Cloud-Init**, **CLI**, and **Web UI (React + FastAPI)**.
+A framework for describing cloud infrastructure topology and instance initialization using a unified, provider-agnostic model, and automatically generating Infrastructure as Code artifacts for deployment.
 
-[![AWS](https://img.shields.io/badge/AWS-Supported-orange.svg)](https://aws.amazon.com/)
-[![OpenStack](https://img.shields.io/badge/OpenStack-Supported-blueviolet.svg)](https://www.openstack.org/)
-[![Terraform](https://img.shields.io/badge/Terraform-Automated-success.svg)](https://www.terraform.io/)
+📌 **Objective:** Standardize infrastructure descriptions, catch configuration issues early, and generate multi-cloud IaC from a single declaration.
 
----
+## Problem Statement
 
-### 🧩 Situation
-In multi-cloud environments, engineers often need to provision the **same infrastructure on both AWS and OpenStack**.  
-Manually writing `.tf` files is slow, error-prone, and hard to reuse when deploying multiple environments.
+Deploying cloud infrastructure with Infrastructure as Code often exposes platform differences in resource models, syntax, and instance initialization. These gaps make definitions hard to reuse, slow to clone at scale, and prone to hidden networking and user-data mistakes that only surface during apply time.
 
----
+## Approach
 
-### 🎯 Task
-Design a framework that can:
-- Convert a **single JSON topology** into valid **Terraform configurations**
-- Support **multi-cloud (AWS & OpenStack)** deployments
-- Use **Cloud-Init** to bootstrap VMs automatically
-- Offer both **CLI** and **Web UI** to manage infrastructure deployments
+Use a unified, abstract topology model to capture infrastructure independently from any provider. Validate topology and user-data early (schema + semantic checks, optional AI review) before generating platform-specific Terraform. Produce ready-to-apply artifacts that can be cloned into multiple isolated environments with consistent naming.
 
----
+## Key Features
 
-### ⚡ Action
-- Developed Python modules to parse JSON topology and generate `.tf` code
-- Implemented CLI tool to generate & apply Terraform configs automatically
-- Built a Web UI using **React + FastAPI**, with Docker Compose for deployment
-- Integrated **Cloud-Init** scripts to bootstrap VMs with initial setup
-- Designed reusable modules for:
-  - **AWS**: `aws_instance`, `aws_vpc`, `aws_subnet`, `aws_security_group`, `aws_nat_gateway`, `aws_internet_gateway`, `aws_eip`, `aws_key_pair`, `aws_route_table`...
-  - **OpenStack**: `openstack_compute_instance`, `openstack_networking_network`, `openstack_networking_subnet`, `openstack_networking_router`, `openstack_networking_floatingip`, `openstack_compute_keypair`, `openstack_networking_secgroup`...
----
+- Unified topology description using structured JSON/YAML
+- Early structural and semantic validation (topology, networking, user-data)
+- Automatic Terraform generation for AWS and OpenStack
+- Standardized cloud-init/user-data handling for multiple OS targets
+- Environment cloning with deterministic suffixing to avoid collisions
+- Optional AI assistance to author or auto-fix topology and validate user-data
 
-### 🏆 Result
-- Reduced provisioning time from **hours to a few minutes** per environment
-- Enabled **one-click deployments** of complex topologies on AWS/OpenStack
-- Eliminated human errors in `.tf` configuration by generating it automatically
-- Easily replicated environments (e.g. create 3 identical clusters with one command)
-- Provided a clear architecture and workflow, helping others onboard faster
+## Architecture Overview
 
----
+Input (topology + user-data) → schema + semantic validation (networking, user-data) → platform mapping (AWS/OpenStack) → Terraform and cloud-init artifact generation → deploy with Terraform. An AI helper can propose or fix topology and review user-data where enabled.
 
-## 🏗️ System Architecture
+## Repository Structure
 
-<p align="center">
-  <img src="https://i.postimg.cc/QCmH7LDT/KIentruc.png" alt="Architecture" width="720"/>
-</p>
+- ai_generator/          AI-assisted topology authoring CLI
+- cloud-init-generator/  Cloud-init templates and validators (schema + AI review)
+- terraform-generator/   Topology validation and Terraform artifact generation
+- terraform-projects/    Generated Terraform projects per provider/environment
+- pre-template/          Supporting templates and assets
+- requirements.txt       Python dependencies
 
----
+## Quick Start
 
-## ⚙️ Workflow
+1. Install: `pip install -r requirements.txt` and ensure Terraform is on PATH.  
+2. Prepare topology: edit `terraform-generator/topology.json` or use the AI generator (`python3 ai_generator/topology_generator.py interactive`).  
+3. Validate and generate Terraform: `cd terraform-generator && python3 generate.py [aws|openstack] <copies>`.  
+4. Deploy: `cd ../terraform-projects/<provider>_<suffix> && terraform init && terraform apply`.  
 
-<p align="center">
-  <img src="https://i.postimg.cc/fytrtsmH/luonghoatodong.png" alt="Workflow" width="720"/>
-</p>
+## Scope and Limitations
 
-1. User defines `topology.json`
-2. CLI triggers the generator
-3. Terraform `.tf` files are created for target cloud
-4. Terraform applies infrastructure
-5. Cloud-Init scripts configure instances automatically
+Focuses on provisioning and initialization. Deep runtime management, observability, and advanced operations are out of scope for now.
 
----
+## Academic Context
 
-## 📄 Sample `topology.json`
+This repository supports a graduation thesis on cloud infrastructure abstraction and automated multi-cloud IaC generation.
 
-```json
-{
-  "instances": [
-    {
-      "name": "vm1",
-      "image": "ubuntu-jammy",
-      "cpu": 2,
-      "ram": 4,
-      "disk": 20,
-      "cloud_init": "cloud-init.yaml",
-      "networks": [{ "name": "net1", "ip": "192.168.1.10" }],
-      "keypair": "toanndcloud-keypair",
-      "security_groups": ["default"],
-      "floating_ip": true
-    }
-  ],
-  "networks": [
-    {
-      "name": "net1",
-      "cidr": "192.168.1.0/24",
-      "gateway_ip": "192.168.1.1",
-      "enable_dhcp": true
-    }
-  ],
-  "routers": [
-    {
-      "name": "R1",
-      "networks": [{ "name": "net1", "ip": "192.168.1.1" }],
-      "external": true
-    }
-  ]
-}
-```
-## 🖥️ Result Example
-<p align="center">
-  <img src="https://i.postimg.cc/PJTMhkKp/Screenshot-2025-08-22-161416.png" alt="Result" width="720"/>
-</p>
+## License
 
----
-
-## 🧪 CLI Usage
-
-### 📌 Prerequisites
-
-```bash
-sudo apt update && sudo apt install python3 python3-pip unzip -y
-wget https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-unzip terraform_1.6.6_linux_amd64.zip && sudo mv terraform /usr/local/bin/
-pip install awscli python-openstackclient
-```
-### 📝 Prepare Credentials
-
-Create a file named `terraform-generator/openstack/credentials.tfvars`:
-
-```hcl
-openstack_auth_url     = ""
-openstack_region       = ""
-openstack_tenant_name  = ""
-openstack_user_name    = ""
-openstack_password     = ""
-external_network_id    = ""
-```
-
-### 💻 CLI Command
-python3 generate.py [openstack|aws] <number_of_copies>
-
-## 🌐 Web UI Usage
-### 📌 Prerequisites
-Docker & Docker Compose
-Node.js & npm
-
-### 🔐 AWS SSO Setup
-```bash
-aws configure sso --profile my-sso
-aws sso login --profile my-sso
-```
-### 🖥️ Run Backend & Frontend
-```bash
-docker compose up --build
-cd frontend && npm start
+This project is for academic and educational purposes.
