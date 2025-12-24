@@ -41,3 +41,9 @@ variable "floating_ip_enabled" {
   default     = false
 }
 
+variable "external_network_name" {
+  description = "Name of the external network pool for floating IPs"
+  type        = string
+  default     = "public"
+}
+

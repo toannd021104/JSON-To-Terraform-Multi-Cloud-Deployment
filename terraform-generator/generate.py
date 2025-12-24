@@ -16,6 +16,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'validators'))
 
 from validate_json import validate_topology_file
 
+# OpenStack config manager
+try:
+    from openstack_config_manager import OpenStackConfigManager
+    CONFIG_MANAGER_AVAILABLE = True
+except ImportError:
+    CONFIG_MANAGER_AVAILABLE = False
+
 # AI-powered fixer using Gemini
 try:
     from ai_fixer import fix_topology_with_ai, display_fix_preview, apply_fix, GEMINI_AVAILABLE
@@ -48,6 +55,8 @@ class TerraformGenerator:
         self.provider = provider.lower()
         self.num_copies = num_copies
         self.topology = None
+        self.openstack_config = None
+        self.discovered_resources = None
         self.validated_resources = None
         self.run()
 
@@ -62,6 +71,14 @@ class TerraformGenerator:
             ))
         else:
             print(f"\n=== Start generating files for {self.provider.upper()} ===")
+
+        # Step 0: Load OpenStack configuration if using OpenStack provider
+        if self.provider == 'openstack':
+            if not self.load_openstack_config():
+                if RICH_AVAILABLE:
+                    console.print("[yellow]! No OpenStack config found, using defaults[/yellow]")
+                else:
+                    print("! No OpenStack config found, using defaults")
 
         # Step 1: Load and validate topology.json
         if not self.load_and_validate_topology():
@@ -81,6 +98,52 @@ class TerraformGenerator:
             ))
         else:
             print("\n=== COMPLETED ===")
+
+    def load_openstack_config(self):
+        """Load OpenStack configuration and discover resources"""
+        if not CONFIG_MANAGER_AVAILABLE:
+            return False
+        
+        try:
+            manager = OpenStackConfigManager()
+            config = manager.load_config()
+            
+            if not config:
+                # No config file, try to create from environment or use defaults
+                if RICH_AVAILABLE:
+                    console.print("[dim]No config file found, checking environment...[/dim]")
+                return False
+            
+            profile = manager.get_active_profile()
+            if not profile:
+                if RICH_AVAILABLE:
+                    console.print("[yellow]! No active profile found[/yellow]")
+                return False
+            
+            self.openstack_config = profile
+            
+            # Auto-discover resources
+            if RICH_AVAILABLE:
+                with console.status("[dim]Discovering OpenStack resources...[/dim]", spinner="dots"):
+                    self.discovered_resources = manager.discover_resources()
+            else:
+                self.discovered_resources = manager.discover_resources()
+            
+            if self.discovered_resources:
+                if RICH_AVAILABLE:
+                    console.print("[green]✓[/green] OpenStack config loaded")
+                    if 'external_network' in self.discovered_resources:
+                        ext_net = self.discovered_resources['external_network']
+                        console.print(f"  External network: [cyan]{ext_net['name']}[/cyan]")
+                else:
+                    print("OpenStack config loaded")
+            
+            return True
+            
+        except Exception as e:
+            if RICH_AVAILABLE:
+                console.print(f"[yellow]! Error loading config: {e}[/yellow]")
+            return False
 
     def load_and_validate_topology(self):
         """Load topology.json and validate against schema + network logic"""
@@ -510,6 +573,10 @@ class TerraformGenerator:
             with open(os.path.join(dir_path, 'main.tf'), 'w', encoding='utf-8') as f:
                 f.write(config_content)
 
+            # Update variables.tf with discovered config for OpenStack
+            if self.provider == 'openstack' and self.openstack_config:
+                self.update_openstack_variables(dir_path)
+
             folder_name = os.path.basename(dir_path)
             if RICH_AVAILABLE:
                 console.print(f"  [green]✓[/green] {folder_name}")
@@ -572,6 +639,86 @@ class TerraformGenerator:
                 net['name'] = f"{net['name']}_{suffix}"
 
         return modified
+
+    def update_openstack_variables(self, dir_path):
+        """Update variables.tf with discovered OpenStack configuration"""
+        variables_file = os.path.join(dir_path, 'variables.tf')
+        if not os.path.exists(variables_file):
+            return
+        
+        # Read current variables.tf
+        with open(variables_file, 'r') as f:
+            content = f.read()
+        
+        # Update default values with discovered config
+        if self.openstack_config:
+            # Update auth_url
+            content = content.replace(
+                'default     = "http://10.102.192.230:5000"',
+                f'default     = "{self.openstack_config["auth_url"]}"'
+            )
+            # Update region
+            content = content.replace(
+                'default     = "RegionOne"',
+                f'default     = "{self.openstack_config["region"]}"'
+            )
+            # Update tenant/project name
+            content = content.replace(
+                'default     = "dacn"',
+                f'default     = "{self.openstack_config["project_name"]}"'
+            )
+            # Update username
+            if 'openstack_user_name' in content:
+                import re
+                content = re.sub(
+                    r'(variable "openstack_user_name".*?default\s*=\s*)"[^"]*"',
+                    f'\\1"{self.openstack_config["username"]}"',
+                    content,
+                    flags=re.DOTALL
+                )
+            # Update password
+            if 'openstack_password' in content:
+                content = re.sub(
+                    r'(variable "openstack_password".*?default\s*=\s*)"[^"]*"',
+                    f'\\1"{self.openstack_config["password"]}"',
+                    content,
+                    flags=re.DOTALL
+                )
+        
+        # Update external network info if discovered
+        ext_net_name = None
+        ext_net_id = None
+        
+        # Priority 1: Use from profile config
+        if self.openstack_config and 'external_network_name' in self.openstack_config:
+            ext_net_name = self.openstack_config['external_network_name']
+        
+        # Priority 2: Use from discovered resources
+        if self.discovered_resources and 'external_network' in self.discovered_resources:
+            ext_net = self.discovered_resources['external_network']
+            ext_net_id = ext_net["id"]
+            if not ext_net_name:  # Only override if not set in profile
+                ext_net_name = ext_net["name"]
+        
+        # Apply external network config
+        if ext_net_id:
+            content = re.sub(
+                r'(variable "external_network_id".*?default\s*=\s*)"[^"]*"',
+                f'\\1"{ext_net_id}"',
+                content,
+                flags=re.DOTALL
+            )
+        if ext_net_name:
+            content = re.sub(
+                r'(variable "external_network_name".*?default\s*=\s*)"[^"]*"',
+                f'\\1"{ext_net_name}"',
+                content,
+                flags=re.DOTALL
+            )
+        
+        # Write updated content
+        with open(variables_file, 'w') as f:
+            f.write(content)
 
 
 # =============================================================================

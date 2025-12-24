@@ -38,7 +38,7 @@ FIXER_PROMPT = """You are a cloud infrastructure expert. Your task is to FIX the
 
 TOPOLOGY STRUCTURE:
 - instances[]: name, image, cpu, ram, disk, networks[], keypair, security_groups[], floating_ip (optional: true/false/"x.x.x.x"), cloud_init (optional)
-- networks[]: name, cidr, gateway_ip, enable_dhcp, pool[]
+- networks[]: name, cidr, gateway_ip, enable_dhcp
 - routers[]: name, networks[], external, routes[]
 
 VALIDATION RULES:
@@ -72,7 +72,7 @@ FIXING GUIDELINES:
 - Prefer using .1 as gateway (e.g., 192.168.1.1 for 192.168.1.0/24)
 - Keep the original structure and intent as much as possible
 
-Return ONLY the fixed JSON, no explanations, no markdown code blocks."""
+IMPORTANT: Return ONLY valid JSON. No explanations, no markdown, no code blocks, no comments. Just the raw JSON object."""
 
 
 def fix_topology_with_ai(topology: dict, errors: List[str], api_key: Optional[str] = None) -> Tuple[bool, dict, List[str]]:
@@ -105,7 +105,7 @@ def fix_topology_with_ai(topology: dict, errors: List[str], api_key: Optional[st
             system_instruction=FIXER_PROMPT,
             generation_config={
                 "temperature": 0.3,
-                "max_output_tokens": 4000
+                "max_output_tokens": 8000
             }
         )
 
@@ -136,9 +136,24 @@ Return the FIXED topology.json only."""
             result = result.split("```json")[1].split("```")[0].strip()
         elif "```" in result:
             result = result.split("```")[1].split("```")[0].strip()
+        
+        # Clean up common JSON issues from AI response
+        # Remove trailing commas before closing brackets
+        import re
+        result = re.sub(r',(\s*[}\]])', r'\1', result)
+        # Remove comments if any
+        result = re.sub(r'//.*?\n', '\n', result)
+        result = re.sub(r'/\*.*?\*/', '', result, flags=re.DOTALL)
 
         # Parse AI response as JSON
-        fixed_topology = json.loads(result)
+        try:
+            fixed_topology = json.loads(result)
+        except json.JSONDecodeError as e:
+            # If still fails, show full response for debugging
+            if RICH_AVAILABLE:
+                console.print(f"[yellow]Full AI Response:[/yellow]\n{result}")
+                console.print(f"[red]JSON Error: {str(e)}[/red]")
+            raise
 
         # Compare original vs fixed to generate human-readable report
         fixes_made = _compare_and_report_fixes(topology, fixed_topology, errors)

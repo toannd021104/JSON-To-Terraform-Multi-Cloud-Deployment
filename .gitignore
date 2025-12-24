@@ -62,6 +62,25 @@ logs/*.log
 .env.local
 .env.*.local
 
+# OpenStack credentials and configuration
+openstack_config.json
+*openrc*.sh
+*-openrc.sh
+export-tfvars-from-openrc.sh
+dacn-openrc*.sh
+
+# Terraform variables (may contain credentials)
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Backup files that may contain credentials
+*.bak
+*_backup
+*.backup
+*config*.json.bak
+
 # Docker
 docker-compose.override.yml
 .dockerignore

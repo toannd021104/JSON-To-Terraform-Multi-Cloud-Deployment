@@ -4,7 +4,6 @@ variable "networks" {
     cidr = string
     gateway_ip = string
     enable_dhcp = bool
-    pool = list(string)
   }))
 }
 
