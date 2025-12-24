@@ -86,4 +86,8 @@ module "instance" {
     lookup(each.value, "floating_ip", null) != true &&
     lookup(each.value, "floating_ip", null) != false
   ) ? each.value.floating_ip : null
+
+  # External network name for floating IP allocation
+  # Priority: instance.floating_ip_pool > var.external_network_name
+  external_network_name = lookup(each.value, "floating_ip_pool", var.external_network_name)
 }

@@ -3,7 +3,7 @@
 variable "openstack_auth_url" {
   description = "URL xác thực OpenStack"
   type        = string
-  default     = "http://10.105.196.95:5000" 
+  default     = "http://10.102.192.230:5000"
 }
 
 variable "openstack_region" {
@@ -33,5 +33,11 @@ variable "openstack_password" {
 variable "external_network_id" {
   description = "ID của external network trong OpenStack"
   type        = string
-  default     ="8990843f-fbc3-49f2-ad08-5eb9b263b23e"
+  default     = "c668f27f-c14b-410d-b1df-016adc280c6e"
+}
+
+variable "external_network_name" {
+  description = "Tên của external network cho floating IP"
+  type        = string
+  default     = "public-network"
 }

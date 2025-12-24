@@ -12,10 +12,9 @@
           "ip": "192.168.10.10"
         }
       ],
-      "keypair": "quoc-keypair",
+      "keypair": "my-keypair",
       "security_groups": ["default"],
-      "floating_ip": true,
-      "floating_ip_pool": "public"
+      "floating_ip": true
     }
   ],
   "networks": [

@@ -29,7 +29,7 @@ resource "openstack_compute_instance_v2" "instance" {
 resource "openstack_networking_floatingip_v2" "fip" {
   for_each = { for inst in [var.instance_name] : inst => inst if var.floating_ip_enabled && var.floating_ip_address == null }
 
-  pool = "public"  # External network pool name
+  pool = var.external_network_name  # External network pool name from variable
 }
 
 # Associate floating IP with the instance

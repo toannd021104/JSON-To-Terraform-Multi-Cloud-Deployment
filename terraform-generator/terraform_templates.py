@@ -159,10 +159,6 @@ def os_provider_block():
       user_name   = var.openstack_user_name
       tenant_name = var.openstack_tenant_name
       password    = var.openstack_password
-      # Override default compute endpoint if needed
-      endpoint_overrides = {
-        compute = "http://10.105.196.95:8774/v2.1/"
-      }
     }
     """)
 

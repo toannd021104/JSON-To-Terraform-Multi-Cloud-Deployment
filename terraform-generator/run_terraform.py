@@ -55,10 +55,15 @@ def run_command_safe(folder, command):
             print(f"\nProcessing {folder.name}...")
 
         # Use subprocess with cwd instead of os.chdir to avoid race condition
+        # Set environment for all terraform commands
+        env = os.environ.copy()
+        env['TF_CLI_ARGS'] = '-no-color'
+        env['COLUMNS'] = '200'  # Set wide terminal width to prevent truncation
+        
         # For apply/destroy make sure the folder is initialized first
         if command == "init":
-            cmd = ["terraform", "init"]
-            result = subprocess.run(cmd, cwd=str(folder.absolute()), capture_output=True, text=True)
+            cmd = ["terraform", "init", "-no-color"]
+            result = subprocess.run(cmd, cwd=str(folder.absolute()), capture_output=True, text=True, env=env)
             exit_code = result.returncode
             if exit_code != 0:
                 error_messages[folder.name] = result.stderr or result.stdout
@@ -70,7 +75,7 @@ def run_command_safe(folder, command):
         if command in ("apply", "destroy"):
             if not RICH_AVAILABLE:
                 print(f"Running 'terraform init' in {folder.name} before '{command}'...")
-            init_result = subprocess.run(["terraform", "init"], cwd=str(folder.absolute()), capture_output=True, text=True)
+            init_result = subprocess.run(["terraform", "init", "-no-color"], cwd=str(folder.absolute()), capture_output=True, text=True, env=env)
             if init_result.returncode != 0:
                 error_messages[folder.name] = init_result.stderr or init_result.stdout
                 if not RICH_AVAILABLE:
@@ -79,11 +84,11 @@ def run_command_safe(folder, command):
 
         # Run the actual command (apply/destroy) with auto-approve where appropriate
         if command in ("apply", "destroy"):
-            cmd = ["terraform", command, "-auto-approve"]
+            cmd = ["terraform", command, "-auto-approve", "-no-color"]
         else:
-            cmd = ["terraform", command]
+            cmd = ["terraform", command, "-no-color"]
 
-        # Stream output in real-time
+        # Stream output in real-time (env already set above)
         full_output = []
         process = subprocess.Popen(
             cmd,
@@ -91,7 +96,8 @@ def run_command_safe(folder, command):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            bufsize=1
+            bufsize=1,
+            env=env
         )
 
         # Read output line by line

@@ -46,7 +46,8 @@ TOPOLOGY_SCHEMA = {
                     },
                     "keypair": {"type": "string"},
                     "security_groups": {"type": "array", "items": {"type": "string"}},
-                    "floating_ip": {"type": ["string", "boolean"]}
+                    "floating_ip": {"type": ["string", "boolean"]},
+                    "floating_ip_pool": {"type": "string"}
                 }
             }
         },
