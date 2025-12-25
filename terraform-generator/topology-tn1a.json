@@ -1,0 +1,59 @@
+{
+  "instances": [
+    {
+      "name": "pc1",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        {
+          "name": "web-net",
+          "ip": "192.168.10.10"
+        }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": ["default"],
+      "floating_ip": true,
+      "floating_ip_pool": "public",
+      "cloud-init": "ubuntu-user.json"
+    },
+    {
+      "name": "pc2",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        {
+          "name": "web-net",
+          "ip": "192.168.10.11"
+        }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": ["default"],
+      "floating_ip": false,
+      "cloud-init": "ubuntu-user.json"
+    }
+  ],
+  "networks": [
+    {
+      "name": "web-net",
+      "cidr": "192.168.10.0/24",
+      "gateway_ip": "192.168.10.1",
+      "enable_dhcp": true
+    }
+  ],
+  "routers": [
+    {
+      "name": "edge-router",
+      "external": true,
+      "networks": [
+        {
+          "name": "web-net",
+          "ip": "192.168.10.1"
+        }
+      ]
+    }
+  ]
+}

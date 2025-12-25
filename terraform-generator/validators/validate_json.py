@@ -60,7 +60,8 @@ TOPOLOGY_SCHEMA = {
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
                     "cidr": {"type": "string", "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/[0-9]{1,2}$"},
-                    "gateway_ip": {"type": "string", "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"},
+                    # Allow null to mean "let the provider pick a gateway"
+                    "gateway_ip": {"type": ["string", "null"], "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"},
                     "enable_dhcp": {"type": "boolean"},
                     "pool": {"type": "array"}
                 }
@@ -278,7 +279,12 @@ def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[st
 
     # Step 5: Validate network gateway IPs
     for net_name, network in network_info.items():
-        gw_ip = network["gateway_ip"]
+        gw_ip = network.get("gateway_ip")
+
+        # Null/empty gateway_ip means "unspecified" (skip validation)
+        if gw_ip is None or gw_ip == "":
+            continue
+
         if not validate_ip(gw_ip):
             errors.append(f"Network '{net_name}': Gateway IP '{gw_ip}' is invalid")
         elif not check_ip_in_cidr(gw_ip, network["cidr"]):
@@ -330,7 +336,12 @@ def validate_topology_file(file_path: str, provider: str) -> Tuple[bool, List[st
     # Step 6.5: Validate gateway_ip matches router interface IP
     # CRITICAL: VMs use gateway_ip as default gateway, must match router interface
     for net_name, network in network_info.items():
-        gw_ip = network["gateway_ip"]
+        gw_ip = network.get("gateway_ip")
+
+        # Skip check if gateway_ip is intentionally unspecified
+        if gw_ip is None or gw_ip == "":
+            continue
+
         if net_name in router_interface_ips:
             router_ip = router_interface_ips[net_name]
             if gw_ip != router_ip:

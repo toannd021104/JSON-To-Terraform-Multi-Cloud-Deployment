@@ -1,0 +1,104 @@
+{
+  "instances": [
+    {
+      "name": "pc-center",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        {
+          "name": "core-net",
+          "ip": "192.168.20.10"
+        }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": [
+        "default"
+      ],
+      "floating_ip": true,
+      "floating_ip_pool": "public",
+      "cloud_init": "ubuntu-user.json"
+    },
+    {
+      "name": "pc-right",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        {
+          "name": "access-net",
+          "ip": "192.168.30.10"
+        }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": [
+        "default"
+      ],
+      "cloud_init": "ubuntu-user.json"
+    }
+  ],
+  "networks": [
+    {
+      "name": "core-net",
+      "cidr": "192.168.20.0/24",
+      "gateway_ip": "192.168.20.1",
+      "enable_dhcp": true
+    },
+    {
+      "name": "access-net",
+      "cidr": "192.168.30.0/24",
+      "gateway_ip": "192.168.30.1",
+      "enable_dhcp": true
+    },
+    {
+  "name": "transit-net",
+  "cidr": "10.0.0.0/30",
+  "gateway_ip": null,
+  "enable_dhcp": false
+}
+  ],
+"routers": [
+  {
+    "name": "core-router",
+    "external": true,
+    "networks": [
+      {
+        "name": "core-net",
+        "ip": "192.168.20.1"
+      },
+      {
+        "name": "transit-net",
+        "ip": "10.0.0.1"
+      }
+    ],
+    "routes": [
+      {
+        "destination": "192.168.30.0/24",
+        "nexthop": "10.0.0.2"
+      }
+    ]
+  },
+  {
+    "name": "access-router",
+    "external": false,
+    "networks": [
+      {
+        "name": "access-net",
+        "ip": "192.168.30.1"
+      },
+      {
+        "name": "transit-net",
+        "ip": "10.0.0.2"
+      }
+    ],
+    "routes": [
+      {
+        "destination": "0.0.0.0/0",
+        "nexthop": "10.0.0.1"
+      }
+    ]
+  }
+]
+}
