@@ -1,0 +1,27 @@
+{
+  "layer": "B_TERRAFORM_DEPLOYMENT",
+  "timestamp": "2025-12-26T09:59:36.049126",
+  "status": "SUCCESS",
+  "project_dir": "terraform-projects/openstack_20251226_165845/openstack_79c875",
+  "deployment": {
+    "apply_status": "Success",
+    "duration_seconds": 51.920470323,
+    "resource_count": 10,
+    "resource_types": {
+      "openstack_compute_floatingip_associate_v2": 1,
+      "openstack_compute_instance_v2": 2,
+      "openstack_networking_floatingip_v2": 1,
+      "openstack_networking_network_v2": 1,
+      "openstack_networking_port_v2": 1,
+      "openstack_networking_router_interface_v2": 1,
+      "openstack_networking_router_route_v2": 1,
+      "openstack_networking_router_v2": 1,
+      "openstack_networking_subnet_v2": 1
+    }
+  },
+  "summary": {
+    "apply_status": "Success",
+    "resource_count": 10,
+    "duration": "51.92s"
+  }
+}

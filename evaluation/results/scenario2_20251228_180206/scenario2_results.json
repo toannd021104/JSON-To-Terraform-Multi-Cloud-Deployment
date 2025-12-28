@@ -1,0 +1,16 @@
+{
+  "30": {
+    "n": 30,
+    "generate_time": 7.433512926101685,
+    "apply_time": 0,
+    "total_time": 7.433512926101685,
+    "resources": 0,
+    "success": false,
+    "folders_created": 0,
+    "errors": [
+      "Generate failed: /home/ubuntu/.local/lib/python3.10/site-packages/google/api_core/_python_version_support.py:266: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.\n  warnings.warn(message, FutureWarning)\n  File \"/home/ubuntu/JSON-To-Terraform-Multi-Cloud-Deplo"
+    ],
+    "name_duplicates": 0,
+    "structure_consistent": true
+  }
+}

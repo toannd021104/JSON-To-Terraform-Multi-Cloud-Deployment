@@ -1,0 +1,106 @@
+{
+  "baseline": {},
+  "framework": {
+    "1": {
+      "n": 1,
+      "generate_time": 1.3612945079803467,
+      "apply_time": 1.3612945079803467,
+      "total_time": 1.3612945079803467,
+      "resources": 0,
+      "success": false,
+      "folders_created": 0,
+      "errors": [
+        "Generate failed: /home/ubuntu/.local/lib/python3.10/site-packages/google/api_core/_python_version_support.py:266: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.\n  warnings.warn(message, FutureWarning)\n"
+      ],
+      "collision_check": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistency_check": {
+        "structure_consistent": true,
+        "details": []
+      }
+    },
+    "3": {
+      "n": 3,
+      "generate_time": 0.8795065879821777,
+      "apply_time": 0.8795065879821777,
+      "total_time": 0.8795065879821777,
+      "resources": 0,
+      "success": false,
+      "folders_created": 0,
+      "errors": [
+        "Generate failed: /home/ubuntu/.local/lib/python3.10/site-packages/google/api_core/_python_version_support.py:266: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.\n  warnings.warn(message, FutureWarning)\n"
+      ],
+      "collision_check": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistency_check": {
+        "structure_consistent": true,
+        "details": []
+      }
+    },
+    "5": {
+      "n": 5,
+      "generate_time": 0.8313047885894775,
+      "apply_time": 0.8313047885894775,
+      "total_time": 0.8313047885894775,
+      "resources": 0,
+      "success": false,
+      "folders_created": 0,
+      "errors": [
+        "Generate failed: /home/ubuntu/.local/lib/python3.10/site-packages/google/api_core/_python_version_support.py:266: FutureWarning: You are using a Python version (3.10.12) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.\n  warnings.warn(message, FutureWarning)\n"
+      ],
+      "collision_check": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistency_check": {
+        "structure_consistent": true,
+        "details": []
+      }
+    }
+  },
+  "comparison": {
+    "1": {
+      "n": 1,
+      "framework_time": 1.3612945079803467,
+      "framework_success": false,
+      "framework_resources": 0,
+      "collisions": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistent": true
+    },
+    "3": {
+      "n": 3,
+      "framework_time": 0.8795065879821777,
+      "framework_success": false,
+      "framework_resources": 0,
+      "collisions": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistent": true
+    },
+    "5": {
+      "n": 5,
+      "framework_time": 0.8313047885894775,
+      "framework_success": false,
+      "framework_resources": 0,
+      "collisions": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistent": true
+    }
+  }
+}

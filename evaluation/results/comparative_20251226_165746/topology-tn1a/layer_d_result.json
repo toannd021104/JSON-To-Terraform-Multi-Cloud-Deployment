@@ -1,0 +1,74 @@
+{
+  "layer": "D_USERDATA_VERIFICATION",
+  "timestamp": "2025-12-26T09:58:38.997734",
+  "status": "SUCCESS",
+  "vms": [
+    {
+      "name": "pc1",
+      "cloudinit_ref": "ubuntu-user.json",
+      "cloudinit_status": "Configured",
+      "file_found": true,
+      "checklist": [
+        {
+          "type": "user",
+          "target": "default",
+          "status": "Defined"
+        },
+        {
+          "type": "user",
+          "target": "user",
+          "status": "Defined"
+        },
+        {
+          "type": "user",
+          "target": "prometheus",
+          "status": "Defined"
+        },
+        {
+          "type": "user",
+          "target": "ubuntu1",
+          "status": "Defined"
+        }
+      ],
+      "checklist_pass": 4,
+      "checklist_total": 4
+    },
+    {
+      "name": "pc2",
+      "cloudinit_ref": "ubuntu-user.json",
+      "cloudinit_status": "Configured",
+      "file_found": true,
+      "checklist": [
+        {
+          "type": "user",
+          "target": "default",
+          "status": "Defined"
+        },
+        {
+          "type": "user",
+          "target": "user",
+          "status": "Defined"
+        },
+        {
+          "type": "user",
+          "target": "prometheus",
+          "status": "Defined"
+        },
+        {
+          "type": "user",
+          "target": "ubuntu1",
+          "status": "Defined"
+        }
+      ],
+      "checklist_pass": 4,
+      "checklist_total": 4
+    }
+  ],
+  "summary": {
+    "total_vms": 2,
+    "cloudinit_configured": 2,
+    "cloudinit_files_found": 2,
+    "checklist_items": 8,
+    "overall_result": "2/2 VMs configured"
+  }
+}

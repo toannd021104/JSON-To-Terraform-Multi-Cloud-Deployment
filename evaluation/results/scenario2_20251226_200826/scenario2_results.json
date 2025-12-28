@@ -1,0 +1,38 @@
+{
+  "baseline": {},
+  "framework": {
+    "1": {
+      "n": 1,
+      "generate_time": 45.63261556625366,
+      "apply_time": 0,
+      "total_time": 45.63261556625366,
+      "resources": 0,
+      "success": true,
+      "folders_created": 1,
+      "errors": [],
+      "collision_check": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistency_check": {
+        "structure_consistent": true,
+        "details": []
+      }
+    }
+  },
+  "comparison": {
+    "1": {
+      "n": 1,
+      "framework_time": 45.63261556625366,
+      "framework_success": true,
+      "framework_resources": 0,
+      "collisions": {
+        "name_collisions": 0,
+        "cidr_collisions": 0,
+        "ip_collisions": 0
+      },
+      "consistent": true
+    }
+  }
+}

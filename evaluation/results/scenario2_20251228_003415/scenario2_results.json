@@ -1,0 +1,14 @@
+{
+  "30": {
+    "n": 30,
+    "generate_time": 102.91436123847961,
+    "apply_time": 102.91436123847961,
+    "total_time": 102.91436123847961,
+    "resources": 126,
+    "success": true,
+    "folders_created": 30,
+    "errors": [],
+    "name_duplicates": 0,
+    "structure_consistent": true
+  }
+}

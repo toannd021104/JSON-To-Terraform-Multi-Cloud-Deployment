@@ -1,0 +1,31 @@
+{
+  "evaluation_name": "OpenStack Deployment Evaluation",
+  "cloud_provider": "openstack",
+  "results_dir": "evaluation/results",
+  "continue_on_error": false,
+
+  "layer_a": {
+    "enabled": true,
+    "topology_file": "terraform-generator/topology.json",
+    "cloudinit_file": "cloud-init-generator/cloud_init.json"
+  },
+
+  "layer_b": {
+    "enabled": true,
+    "terraform_project_dir": "terraform-projects/openstack_topology_1/openstack_topology_1",
+    "cloud_provider": "openstack",
+    "skip_apply": false
+  },
+
+  "layer_c": {
+    "enabled": true,
+    "topology_file": "terraform-generator/topology.json",
+    "state_file": "terraform-projects/openstack_topology_1/openstack_topology_1/terraform.tfstate",
+    "cloud_provider": "openstack"
+  },
+
+  "layer_d": {
+    "enabled": true,
+    "vm_config_file": "evaluation/vm_verification_config.json"
+  }
+}
