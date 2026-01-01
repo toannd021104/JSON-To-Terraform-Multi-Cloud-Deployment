@@ -13,7 +13,9 @@
         }
       ],
       "keypair": "quoc-keypair",
-      "security_groups": ["default"],
+      "security_groups": [
+        "default"
+      ],
       "floating_ip": false,
       "cloud-init": "ubuntu-user.json"
     }
