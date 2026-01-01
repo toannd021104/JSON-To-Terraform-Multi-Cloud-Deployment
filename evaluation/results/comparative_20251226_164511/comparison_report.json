@@ -1,0 +1,204 @@
+{
+  "evaluation_timestamp": "2025-12-26T09:48:26.154973",
+  "description": "Đánh giá so sánh 3 topologies với 4 Layers",
+  "topologies": {
+    "topology-tn1a": {
+      "topology_name": "topology-tn1a",
+      "layer_a": {
+        "status": "PASS",
+        "schema": "PASS",
+        "logic": "PASS",
+        "result": "Hợp lệ"
+      },
+      "layer_b": {
+        "status": "SUCCESS",
+        "apply_status": "Success",
+        "resource_count": 9,
+        "duration": "50.27s"
+      },
+      "layer_c": {
+        "status": "FAIL",
+        "networks_match": "FAIL",
+        "instances_match": "PASS",
+        "routers_match": "PASS",
+        "match_rate": "67%",
+        "result": "Mismatch"
+      },
+      "layer_d": {
+        "status": "SUCCESS",
+        "vms_total": 2,
+        "cloudinit_configured": 2,
+        "checklist_items": 8,
+        "result": "2/2 VMs configured"
+      }
+    },
+    "topology-tn1b-2router": {
+      "topology_name": "topology-tn1b-2router",
+      "layer_a": {
+        "status": "PASS",
+        "schema": "PASS",
+        "logic": "PASS",
+        "result": "Hợp lệ"
+      },
+      "layer_b": {
+        "status": "SUCCESS",
+        "apply_status": "Success",
+        "resource_count": 10,
+        "duration": "53.13s"
+      },
+      "layer_c": {
+        "status": "FAIL",
+        "networks_match": "FAIL",
+        "instances_match": "PASS",
+        "routers_match": "PASS",
+        "match_rate": "67%",
+        "result": "Mismatch"
+      },
+      "layer_d": {
+        "status": "SUCCESS",
+        "vms_total": 2,
+        "cloudinit_configured": 2,
+        "checklist_items": 8,
+        "result": "2/2 VMs configured"
+      }
+    },
+    "topology-tn1c": {
+      "topology_name": "topology-tn1c",
+      "layer_a": {
+        "status": "PASS",
+        "schema": "PASS",
+        "logic": "PASS",
+        "result": "Hợp lệ"
+      },
+      "layer_b": {
+        "status": "SUCCESS",
+        "apply_status": "Success",
+        "resource_count": 10,
+        "duration": "75.75s"
+      },
+      "layer_c": {
+        "status": "FAIL",
+        "networks_match": "FAIL",
+        "instances_match": "PASS",
+        "routers_match": "PASS",
+        "match_rate": "67%",
+        "result": "Mismatch"
+      },
+      "layer_d": {
+        "status": "SUCCESS",
+        "vms_total": 4,
+        "cloudinit_configured": 4,
+        "checklist_items": 16,
+        "result": "4/4 VMs configured"
+      }
+    }
+  },
+  "tables": {
+    "layer_a": [
+      {
+        "topology": "topology-tn1a",
+        "schema": "PASS",
+        "logic": "PASS",
+        "result": "Hợp lệ"
+      },
+      {
+        "topology": "topology-tn1b-2router",
+        "schema": "PASS",
+        "logic": "PASS",
+        "result": "Hợp lệ"
+      },
+      {
+        "topology": "topology-tn1c",
+        "schema": "PASS",
+        "logic": "PASS",
+        "result": "Hợp lệ"
+      }
+    ],
+    "layer_b": [
+      {
+        "topology": "topology-tn1a",
+        "apply_status": "Success",
+        "resource_count": 9,
+        "duration": "50.27s"
+      },
+      {
+        "topology": "topology-tn1b-2router",
+        "apply_status": "Success",
+        "resource_count": 10,
+        "duration": "53.13s"
+      },
+      {
+        "topology": "topology-tn1c",
+        "apply_status": "Success",
+        "resource_count": 10,
+        "duration": "75.75s"
+      }
+    ],
+    "layer_c": [
+      {
+        "topology": "topology-tn1a",
+        "networks_match": "FAIL",
+        "instances_match": "PASS",
+        "routers_match": "PASS",
+        "match_rate": "67%",
+        "result": "Mismatch"
+      },
+      {
+        "topology": "topology-tn1b-2router",
+        "networks_match": "FAIL",
+        "instances_match": "PASS",
+        "routers_match": "PASS",
+        "match_rate": "67%",
+        "result": "Mismatch"
+      },
+      {
+        "topology": "topology-tn1c",
+        "networks_match": "FAIL",
+        "instances_match": "PASS",
+        "routers_match": "PASS",
+        "match_rate": "67%",
+        "result": "Mismatch"
+      }
+    ],
+    "layer_d": [
+      {
+        "topology": "topology-tn1a",
+        "vms_total": 2,
+        "cloudinit_configured": 2,
+        "checklist_items": 8,
+        "result": "2/2 VMs configured"
+      },
+      {
+        "topology": "topology-tn1b-2router",
+        "vms_total": 2,
+        "cloudinit_configured": 2,
+        "checklist_items": 8,
+        "result": "2/2 VMs configured"
+      },
+      {
+        "topology": "topology-tn1c",
+        "vms_total": 4,
+        "cloudinit_configured": 4,
+        "checklist_items": 16,
+        "result": "4/4 VMs configured"
+      }
+    ]
+  },
+  "summary": {
+    "topology-tn1a": {
+      "layers_passed": 3,
+      "total_layers": 4,
+      "status": "⚠️ PARTIAL"
+    },
+    "topology-tn1b-2router": {
+      "layers_passed": 3,
+      "total_layers": 4,
+      "status": "⚠️ PARTIAL"
+    },
+    "topology-tn1c": {
+      "layers_passed": 3,
+      "total_layers": 4,
+      "status": "⚠️ PARTIAL"
+    }
+  }
+}

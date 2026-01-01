@@ -1,0 +1,137 @@
+{
+  "layer": "A_INPUT_VALIDATION",
+  "timestamp": "2025-12-26T09:57:46.474650",
+  "status": "PASS",
+  "schema_validation": {
+    "status": "PASS",
+    "errors": [],
+    "checks": [
+      {
+        "key": "instances",
+        "status": "PASS"
+      },
+      {
+        "key": "networks",
+        "status": "PASS"
+      },
+      {
+        "key": "routers",
+        "status": "PASS"
+      },
+      {
+        "component": "network.web-net.name",
+        "status": "PASS"
+      },
+      {
+        "component": "network.web-net.cidr",
+        "status": "PASS"
+      },
+      {
+        "component": "network.web-net.gateway_ip",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc1.name",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc1.networks",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc1.image",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc1.cpu",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc1.ram",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc1.disk",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc2.name",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc2.networks",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc2.image",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc2.cpu",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc2.ram",
+        "status": "PASS"
+      },
+      {
+        "component": "instance.pc2.disk",
+        "status": "PASS"
+      },
+      {
+        "component": "router.edge-router.name",
+        "status": "PASS"
+      },
+      {
+        "component": "router.edge-router.networks",
+        "status": "PASS"
+      },
+      {
+        "component": "router.edge-router.external",
+        "status": "PASS"
+      }
+    ]
+  },
+  "logic_validation": {
+    "status": "PASS",
+    "errors": [],
+    "checks": [
+      {
+        "check": "CIDR format: web-net",
+        "status": "PASS"
+      },
+      {
+        "check": "Instance pc1 -> web-net",
+        "status": "PASS"
+      },
+      {
+        "check": "Instance pc2 -> web-net",
+        "status": "PASS"
+      },
+      {
+        "check": "Router edge-router -> web-net",
+        "status": "PASS"
+      },
+      {
+        "check": "Gateway 192.168.10.1 in 192.168.10.0/24",
+        "status": "PASS"
+      },
+      {
+        "check": "IP 192.168.10.10 in 192.168.10.0/24",
+        "status": "PASS"
+      },
+      {
+        "check": "IP 192.168.10.11 in 192.168.10.0/24",
+        "status": "PASS"
+      }
+    ]
+  },
+  "summary": {
+    "schema_status": "PASS",
+    "logic_status": "PASS",
+    "total_errors": 0,
+    "result": "Hợp lệ",
+    "schema_checks": 21,
+    "logic_checks": 7
+  }
+}

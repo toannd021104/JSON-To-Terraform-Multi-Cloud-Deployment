@@ -52,8 +52,13 @@ class OpenStackConfigManager:
         active_profile: Tên profile đang được sử dụng
     """
     
-    def __init__(self, config_file="openstack_config.json"):
-        self.config_file = config_file
+    def __init__(self, config_file=None):
+        # Luôn lấy file config ở cùng thư mục với script này
+        if config_file is None:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            self.config_file = os.path.join(script_dir, "openstack_config.json")
+        else:
+            self.config_file = config_file
         self.config = None  # Sẽ load từ JSON file
         self.active_profile = None  # Profile hiện tại (e.g., 'default')
         

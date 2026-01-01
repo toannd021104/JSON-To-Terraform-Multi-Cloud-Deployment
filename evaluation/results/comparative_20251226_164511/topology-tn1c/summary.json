@@ -1,0 +1,30 @@
+{
+  "topology_name": "topology-tn1c",
+  "layer_a": {
+    "status": "PASS",
+    "schema": "PASS",
+    "logic": "PASS",
+    "result": "Hợp lệ"
+  },
+  "layer_b": {
+    "status": "SUCCESS",
+    "apply_status": "Success",
+    "resource_count": 10,
+    "duration": "75.75s"
+  },
+  "layer_c": {
+    "status": "FAIL",
+    "networks_match": "FAIL",
+    "instances_match": "PASS",
+    "routers_match": "PASS",
+    "match_rate": "67%",
+    "result": "Mismatch"
+  },
+  "layer_d": {
+    "status": "SUCCESS",
+    "vms_total": 4,
+    "cloudinit_configured": 4,
+    "checklist_items": 16,
+    "result": "4/4 VMs configured"
+  }
+}

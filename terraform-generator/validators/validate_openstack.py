@@ -155,16 +155,18 @@ def validate_resources(topology: Dict) -> Dict:
                     f"Use 'flavor' field directly instead of cpu/ram/disk."
                 )
             else:
-                # Find best matching flavor
-                matched_flavor = next(
-                    (flv for flv in flavors
-                     if int(flv['VCPUs']) >= required_cpu
-                     and int(flv['RAM']) >= required_ram
-                     and int(flv['Disk']) >= required_disk),
-                    None
-                )
-
-                if matched_flavor:
+                # Find best matching flavor (smallest flavor that meets requirements)
+                matching_flavors = [
+                    flv for flv in flavors
+                    if int(flv['VCPUs']) >= required_cpu
+                    and int(flv['RAM']) >= required_ram
+                    and int(flv['Disk']) >= required_disk
+                ]
+                
+                if matching_flavors:
+                    # Sort by RAM (primary), then CPU, then Disk to get smallest match
+                    matched_flavor = min(matching_flavors, 
+                                        key=lambda f: (int(f['RAM']), int(f['VCPUs']), int(f['Disk'])))
                     instance_result['flavor'] = matched_flavor['Name']
                     print(f"  {instance['name']}: matched flavor '{matched_flavor['Name']}' "
                           f"({matched_flavor['VCPUs']}cpu, {matched_flavor['RAM']}MB, {matched_flavor['Disk']}GB)")

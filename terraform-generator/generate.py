@@ -23,13 +23,20 @@ try:
 except ImportError:
     CONFIG_MANAGER_AVAILABLE = False
 
-# AI-powered fixer using Gemini
+# AI-powered fixer using Gemini (single AI)
 try:
     from ai_fixer import fix_topology_with_ai, display_fix_preview, apply_fix, GEMINI_AVAILABLE
     AI_FIXER_AVAILABLE = True
 except ImportError:
     AI_FIXER_AVAILABLE = False
     GEMINI_AVAILABLE = False
+
+# Dual-AI cross-checker (OpenAI + Gemini)
+try:
+    from ai_cross_checker import fix_with_openai, review_with_gemini, render_diff, load_topology, save_topology
+    DUAL_AI_AVAILABLE = True
+except ImportError:
+    DUAL_AI_AVAILABLE = False
 
 import terraform_templates as tf_tpl
 import subprocess
@@ -207,8 +214,9 @@ class TerraformGenerator:
 
     def _try_ai_autofix(self, errors: list) -> bool:
         """
-        Attempt to fix topology errors using AI (Gemini)
-        Shows diff preview and asks for user confirmation before applying
+        Attempt to fix topology errors using Dual-AI (OpenAI fix + Gemini review)
+        Requires BOTH to pass before applying changes
+        Falls back to single-AI (Gemini) if OpenAI not available
         """
         # Load current topology for AI analysis
         try:
@@ -219,25 +227,142 @@ class TerraformGenerator:
                 console.print(f"[red]Error reading topology:[/red] {str(e)}")
             return False
 
-        # Check if AI fixer dependencies are available
-        if not AI_FIXER_AVAILABLE or not GEMINI_AVAILABLE:
-            if RICH_AVAILABLE:
-                console.print("\n[dim]AI auto-fix not available (install google-generativeai: pip install google-generativeai)[/dim]")
-            return False
+        # Check for API keys
+        openai_key = os.getenv("OPENAI_API_KEY")
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        
+        # Try Dual-AI mode first (OpenAI + Gemini cross-check)
+        if DUAL_AI_AVAILABLE and openai_key and gemini_key:
+            return self._dual_ai_fix(current_topology, errors)
+        
+        # Fall back to single-AI mode (Gemini only)
+        if AI_FIXER_AVAILABLE and GEMINI_AVAILABLE and gemini_key:
+            return self._single_ai_fix(current_topology, errors, gemini_key)
+        
+        # No AI available
+        if RICH_AVAILABLE:
+            console.print("\n[dim]AI auto-fix not available[/dim]")
+            console.print("[dim]Set OPENAI_API_KEY + GEMINI_API_KEY for Dual-AI mode[/dim]")
+            console.print("[dim]Or set GEMINI_API_KEY for Single-AI mode[/dim]")
+        return False
 
-        # Check for Gemini API key
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
+    def _dual_ai_fix(self, current_topology: dict, errors: list) -> bool:
+        """
+        Dual-AI fix: OpenAI proposes fix, Gemini reviews
+        Only applies if BOTH pass
+        """
+        if RICH_AVAILABLE:
+            console.print()
+            console.print(Panel.fit(
+                "[bold yellow]Dual-AI Auto-Fix[/bold yellow]\n"
+                "[dim]OpenAI (fix) + Gemini (review)[/dim]",
+                border_style="yellow"
+            ))
+        
+        # Step 1: OpenAI fix
+        if RICH_AVAILABLE:
+            console.print("\n[cyan]Step 1/3:[/cyan] Requesting OpenAI fix...")
+        
+        openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        success, fixed_topology, fix_errors = fix_with_openai(current_topology, errors, openai_model)
+        
+        if not success:
             if RICH_AVAILABLE:
-                console.print("\n[dim]AI auto-fix not available (GEMINI_API_KEY not set)[/dim]")
+                console.print(f"[red]✗ OpenAI fix failed:[/red] {fix_errors[0] if fix_errors else 'Unknown error'}")
             return False
+        
+        if RICH_AVAILABLE:
+            console.print("[green]✓[/green] OpenAI proposed a fix")
+        
+        # Show diff
+        from rich.syntax import Syntax
+        diff_text = render_diff(current_topology, fixed_topology)
+        if diff_text and RICH_AVAILABLE:
+            console.print(Panel.fit(Syntax(diff_text, "diff", theme="ansi_dark"), title="Proposed Changes", border_style="yellow"))
+        
+        # Step 2: Re-validate
+        if RICH_AVAILABLE:
+            console.print("\n[cyan]Step 2/3:[/cyan] Re-validating fixed topology...")
+        
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(fixed_topology, tmp)
+            tmp_path = tmp.name
+        
+        post_valid, post_errors = validate_topology_file(tmp_path, self.provider)
+        os.unlink(tmp_path)
+        
+        if post_valid:
+            if RICH_AVAILABLE:
+                console.print("[green]✓[/green] Re-validation passed")
+        else:
+            if RICH_AVAILABLE:
+                console.print("[yellow]![/yellow] Re-validation has warnings:")
+                for err in post_errors[:3]:
+                    console.print(f"  [dim]• {err}[/dim]")
+        
+        # Step 3: Gemini review
+        if RICH_AVAILABLE:
+            console.print("\n[cyan]Step 3/3:[/cyan] Requesting Gemini review...")
+        
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        review_ok, review, review_errors = review_with_gemini(fixed_topology, errors, post_errors, gemini_model)
+        
+        gemini_approved = False
+        if review_ok:
+            gemini_status = review.get("status", "").lower()
+            gemini_approved = gemini_status in ["pass", "warn"]
+            
+            if RICH_AVAILABLE:
+                status_color = "green" if gemini_status == "pass" else ("yellow" if gemini_status == "warn" else "red")
+                console.print(f"[{status_color}]Gemini status: {gemini_status.upper()}[/{status_color}]")
+                
+                if review.get("critical"):
+                    console.print("[red]Critical issues:[/red]")
+                    for c in review["critical"]:
+                        console.print(f"  • {c}")
+                if review.get("warnings"):
+                    console.print("[yellow]Warnings:[/yellow]")
+                    for w in review["warnings"][:3]:
+                        console.print(f"  • {w}")
+        else:
+            if RICH_AVAILABLE:
+                console.print(f"[red]✗ Gemini review failed:[/red] {review_errors[0] if review_errors else 'Unknown'}")
+        
+        # Dual-AI approval check
+        dual_approved = post_valid and gemini_approved
+        
+        if RICH_AVAILABLE:
+            console.print()
+            console.print("─" * 40)
+            console.print("[bold]Dual-AI Approval:[/bold]")
+            console.print(f"  Re-validation: {'[green]✓ PASS[/green]' if post_valid else '[red]✗ FAIL[/red]'}")
+            console.print(f"  Gemini Review: {'[green]✓ PASS[/green]' if gemini_approved else '[red]✗ FAIL[/red]'}")
+            console.print("─" * 40)
+        
+        if not dual_approved:
+            if RICH_AVAILABLE:
+                console.print("[red]✗ Cannot apply: Both validations must pass[/red]")
+            return False
+        
+        # Apply
+        if RICH_AVAILABLE:
+            console.print("[green]✓ Both validations passed![/green]")
+        
+        save_topology("topology.json", fixed_topology)
+        if RICH_AVAILABLE:
+            console.print("[green]✓ Applied Dual-AI fix to topology.json[/green]")
+        return True
 
-        # Prompt user for AI fix
+    def _single_ai_fix(self, current_topology: dict, errors: list, api_key: str) -> bool:
+        """
+        Single-AI fix using Gemini only (fallback mode)
+        """
         if RICH_AVAILABLE:
             console.print()
             console.print(Panel.fit(
                 "[bold yellow]AI Auto-Fix[/bold yellow]\n"
-                "[dim]Powered by Gemini[/dim]",
+                "[dim]Powered by Gemini (single-AI mode)[/dim]",
                 border_style="yellow"
             ))
             try:

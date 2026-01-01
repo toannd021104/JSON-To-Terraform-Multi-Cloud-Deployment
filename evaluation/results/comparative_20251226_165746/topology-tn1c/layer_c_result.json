@@ -1,0 +1,213 @@
+{
+  "layer": "C_MODEL_CONSISTENCY",
+  "timestamp": "2025-12-26T10:00:56.620095",
+  "status": "PASS",
+  "checks": {
+    "networks": {
+      "status": "PASS",
+      "expected": 9,
+      "actual": 9,
+      "match": true,
+      "details": [
+        {
+          "component": "connect-dist-net",
+          "field": "CIDR",
+          "expected": "10.0.200.0/30",
+          "actual": "10.0.200.0/30",
+          "result": "Match"
+        },
+        {
+          "component": "connect-dist-net",
+          "field": "Gateway",
+          "expected": "null (no gateway)",
+          "actual": "10.0.200.1",
+          "result": "Match (null accepted)"
+        },
+        {
+          "component": "core-1-dist-1",
+          "field": "CIDR",
+          "expected": "10.0.1.0/29",
+          "actual": "10.0.1.0/29",
+          "result": "Match"
+        },
+        {
+          "component": "core-1-dist-1",
+          "field": "Gateway",
+          "expected": "null (no gateway)",
+          "actual": "10.0.1.1",
+          "result": "Match (null accepted)"
+        },
+        {
+          "component": "core-1-dist-2",
+          "field": "CIDR",
+          "expected": "10.0.2.0/29",
+          "actual": "10.0.2.0/29",
+          "result": "Match"
+        },
+        {
+          "component": "core-1-dist-2",
+          "field": "Gateway",
+          "expected": "null (no gateway)",
+          "actual": "10.0.2.1",
+          "result": "Match (null accepted)"
+        },
+        {
+          "component": "core-2-dist-1",
+          "field": "CIDR",
+          "expected": "10.0.3.0/29",
+          "actual": "10.0.3.0/29",
+          "result": "Match"
+        },
+        {
+          "component": "core-2-dist-1",
+          "field": "Gateway",
+          "expected": "null (no gateway)",
+          "actual": "10.0.3.1",
+          "result": "Match (null accepted)"
+        },
+        {
+          "component": "core-2-dist-2",
+          "field": "CIDR",
+          "expected": "10.0.4.0/29",
+          "actual": "10.0.4.0/29",
+          "result": "Match"
+        },
+        {
+          "component": "core-2-dist-2",
+          "field": "Gateway",
+          "expected": "null (no gateway)",
+          "actual": "10.0.4.1",
+          "result": "Match (null accepted)"
+        },
+        {
+          "component": "access-net-1",
+          "field": "CIDR",
+          "expected": "192.168.10.0/24",
+          "actual": "192.168.10.0/24",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-1",
+          "field": "Gateway",
+          "expected": "192.168.10.1",
+          "actual": "192.168.10.1",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-2",
+          "field": "CIDR",
+          "expected": "192.168.11.0/24",
+          "actual": "192.168.11.0/24",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-2",
+          "field": "Gateway",
+          "expected": "192.168.11.1",
+          "actual": "192.168.11.1",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-3",
+          "field": "CIDR",
+          "expected": "192.168.12.0/24",
+          "actual": "192.168.12.0/24",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-3",
+          "field": "Gateway",
+          "expected": "192.168.12.1",
+          "actual": "192.168.12.1",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-4",
+          "field": "CIDR",
+          "expected": "192.168.13.0/24",
+          "actual": "192.168.13.0/24",
+          "result": "Match"
+        },
+        {
+          "component": "access-net-4",
+          "field": "Gateway",
+          "expected": "192.168.13.1",
+          "actual": "192.168.13.1",
+          "result": "Match"
+        }
+      ]
+    },
+    "instances": {
+      "status": "PASS",
+      "expected": 4,
+      "actual": 4,
+      "match": true,
+      "details": [
+        {
+          "component": "pc1",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc2",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc3",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc4",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        }
+      ]
+    },
+    "routers": {
+      "status": "PASS",
+      "expected": 4,
+      "actual": 4,
+      "match": true,
+      "details": [
+        {
+          "component": "core-router-1",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "core-router-2",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "dist-router-1",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "dist-router-2",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        }
+      ]
+    }
+  },
+  "mismatches": [],
+  "summary": {
+    "total_checks": 3,
+    "passed": 3,
+    "failed": 0,
+    "match_rate": "100%",
+    "overall_result": "Match"
+  }
+}

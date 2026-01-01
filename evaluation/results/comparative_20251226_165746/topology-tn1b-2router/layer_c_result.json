@@ -1,0 +1,105 @@
+{
+  "layer": "C_MODEL_CONSISTENCY",
+  "timestamp": "2025-12-26T09:59:36.080937",
+  "status": "PASS",
+  "checks": {
+    "networks": {
+      "status": "PASS",
+      "expected": 3,
+      "actual": 3,
+      "match": true,
+      "details": [
+        {
+          "component": "core-net",
+          "field": "CIDR",
+          "expected": "192.168.20.0/24",
+          "actual": "192.168.20.0/24",
+          "result": "Match"
+        },
+        {
+          "component": "core-net",
+          "field": "Gateway",
+          "expected": "192.168.20.1",
+          "actual": "192.168.20.1",
+          "result": "Match"
+        },
+        {
+          "component": "access-net",
+          "field": "CIDR",
+          "expected": "192.168.30.0/24",
+          "actual": "192.168.30.0/24",
+          "result": "Match"
+        },
+        {
+          "component": "access-net",
+          "field": "Gateway",
+          "expected": "192.168.30.1",
+          "actual": "192.168.30.1",
+          "result": "Match"
+        },
+        {
+          "component": "transit-net",
+          "field": "CIDR",
+          "expected": "10.0.0.0/30",
+          "actual": "10.0.0.0/30",
+          "result": "Match"
+        },
+        {
+          "component": "transit-net",
+          "field": "Gateway",
+          "expected": "null (no gateway)",
+          "actual": "10.0.0.1",
+          "result": "Match (null accepted)"
+        }
+      ]
+    },
+    "instances": {
+      "status": "PASS",
+      "expected": 2,
+      "actual": 2,
+      "match": true,
+      "details": [
+        {
+          "component": "pc-center",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc-right",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        }
+      ]
+    },
+    "routers": {
+      "status": "PASS",
+      "expected": 2,
+      "actual": 2,
+      "match": true,
+      "details": [
+        {
+          "component": "core-router",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "access-router",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        }
+      ]
+    }
+  },
+  "mismatches": [],
+  "summary": {
+    "total_checks": 3,
+    "passed": 3,
+    "failed": 0,
+    "match_rate": "100%",
+    "overall_result": "Match"
+  }
+}

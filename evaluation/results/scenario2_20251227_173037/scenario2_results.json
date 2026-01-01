@@ -1,0 +1,14 @@
+{
+  "5": {
+    "n": 5,
+    "generate_time": 49.394540548324585,
+    "apply_time": 49.394540548324585,
+    "total_time": 49.394540548324585,
+    "resources": 30,
+    "success": true,
+    "folders_created": 5,
+    "errors": [],
+    "name_duplicates": 0,
+    "structure_consistent": true
+  }
+}

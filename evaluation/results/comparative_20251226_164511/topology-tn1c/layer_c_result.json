@@ -1,0 +1,96 @@
+{
+  "layer": "C_MODEL_CONSISTENCY",
+  "timestamp": "2025-12-26T09:48:24.056980",
+  "status": "FAIL",
+  "checks": {
+    "networks": {
+      "status": "FAIL",
+      "expected": 9,
+      "actual": 9,
+      "match": false,
+      "details": []
+    },
+    "instances": {
+      "status": "PASS",
+      "expected": 4,
+      "actual": 4,
+      "match": true,
+      "details": [
+        {
+          "component": "pc1",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc2",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc3",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "pc4",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        }
+      ]
+    },
+    "routers": {
+      "status": "PASS",
+      "expected": 4,
+      "actual": 4,
+      "match": true,
+      "details": [
+        {
+          "component": "core-router-1",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "core-router-2",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "dist-router-1",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        },
+        {
+          "component": "dist-router-2",
+          "expected": "Có",
+          "actual": "Có",
+          "result": "Match"
+        }
+      ]
+    }
+  },
+  "mismatches": [
+    "Network 'connect-dist-net' không tìm thấy trong state",
+    "Network 'core-1-dist-1' không tìm thấy trong state",
+    "Network 'core-1-dist-2' không tìm thấy trong state",
+    "Network 'core-2-dist-1' không tìm thấy trong state",
+    "Network 'core-2-dist-2' không tìm thấy trong state",
+    "Network 'access-net-1' không tìm thấy trong state",
+    "Network 'access-net-2' không tìm thấy trong state",
+    "Network 'access-net-3' không tìm thấy trong state",
+    "Network 'access-net-4' không tìm thấy trong state"
+  ],
+  "summary": {
+    "total_checks": 3,
+    "passed": 2,
+    "failed": 1,
+    "match_rate": "67%",
+    "overall_result": "Mismatch"
+  }
+}
