@@ -136,6 +136,27 @@ def aws_keypair_block():
     }
     """)
 
+def aws_instance_only_outputs_block():
+    """Outputs for instance-only folders (when using shared VPC)"""
+    return textwrap.dedent("""
+    # ===============================================
+    # Outputs - Instance information only
+    # ===============================================
+    output "instance_private_ips" {
+      description = "Map of instance names to private IPs"
+      value = {
+        for k, v in module.instance : k => v.private_ip
+      }
+    }
+
+    output "instance_ids" {
+      description = "Map of instance names to IDs"
+      value = {
+        for k, v in module.instance : k => v.id
+      }
+    }
+    """)
+
 # ===== OPENSTACK BLOCKS =====
 def os_terraform_block():
     return textwrap.dedent("""
@@ -282,7 +303,7 @@ def aws_shared_vpc_network_module_block():
     # - Creates public/private subnets for all instances
     # ===============================================
     module "network" {
-      source              = "../aws/modules/network"
+      source              = "./modules/network"
       vpc_cidr_block      = var.vpc_cidr_block
       public_subnet_cidrs = var.public_subnet_cidrs
       private_subnets     = local.all_networks
@@ -300,7 +321,7 @@ def aws_shared_vpc_security_group_block():
     # ===============================================
     module "security_group" {
       depends_on              = [module.network]
-      source                  = "../aws/modules/security_groups"
+      source                  = "./modules/security_groups"
       vpc_id                  = module.network.vpc_id
       required_security_groups = local.required_security_groups
     }

@@ -230,7 +230,7 @@ def process_all_instances(topology: Dict, validated_resources: Dict, output_dir:
     # Loop through topology instances (which may have suffix added)
     for instance in topology.get('instances', []):
         instance_name = instance['name']
-        cloud_init_filename = instance.get('cloud_init')
+        cloud_init_filename = instance.get('cloud-init') or instance.get('cloud_init')
 
         if not cloud_init_filename:
             continue

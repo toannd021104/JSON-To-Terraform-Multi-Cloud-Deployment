@@ -30,8 +30,8 @@ fi
 
 cd "$TERRAFORM_PROJECTS_DIR"
 
-# Get all project folders (openstack_* pattern)
-project_dirs=$(find . -maxdepth 1 -type d -name "openstack_*" | sort -r)
+# Get all project folders (openstack_* and aws_* patterns)
+project_dirs=$(find . -maxdepth 1 -type d \( -name "openstack_*" -o -name "aws_*" \) | sort -r)
 
 if [ -z "$project_dirs" ]; then
     echo -e "${YELLOW}No project folders found${NC}"
@@ -101,12 +101,25 @@ echo "=========================================="
 echo -e "${GREEN}Destroy process completed!${NC}"
 echo "=========================================="
 echo ""
-echo "Verifying remaining resources in OpenStack..."
+
+# Check which cloud provider to verify
+echo "Verifying remaining resources..."
 echo ""
 
-# Verify with OpenStack CLI
-openstack server list 2>/dev/null || echo "Could not check instances"
-echo ""
-openstack router list 2>/dev/null || echo "Could not check routers"
-echo ""
-openstack network list 2>/dev/null | grep -v "public" || echo "Could not check networks"
+# Try OpenStack CLI if available
+if command -v openstack &> /dev/null; then
+    echo "Checking OpenStack resources:"
+    openstack server list 2>/dev/null || echo "Could not check instances"
+    echo ""
+    openstack router list 2>/dev/null || echo "Could not check routers"
+    echo ""
+    openstack network list 2>/dev/null | grep -v "public" || echo "Could not check networks"
+fi
+
+# Try AWS CLI if available
+if command -v aws &> /dev/null; then
+    echo ""
+    echo "Checking AWS resources (may take a moment)..."
+    AWS_REGION="${AWS_DEFAULT_REGION:-us-west-2}"
+    aws ec2 describe-instances --region "$AWS_REGION" --query 'Reservations[*].Instances[?State.Name==`running`].[InstanceId,Tags[?Key==`Name`].Value|[0]]' --output table 2>/dev/null || echo "Could not check EC2 instances"
+fi

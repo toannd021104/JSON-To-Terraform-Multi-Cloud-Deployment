@@ -608,6 +608,12 @@ class TerraformGenerator:
         else:
             print(f"\n Creating shared VPC folder: {shared_vpc_path}")
 
+        # Copy AWS modules to shared VPC folder
+        aws_modules_src = os.path.join(self.provider, "modules")
+        aws_modules_dst = os.path.join(shared_vpc_path, "modules")
+        if os.path.exists(aws_modules_src):
+            shutil.copytree(aws_modules_src, aws_modules_dst)
+
         # Collect all networks/routers from all copies
         all_networks, all_routers = self.collect_all_networks_and_routers(original_topology, suffixes)
 
@@ -683,6 +689,10 @@ class TerraformGenerator:
         try:
             # Copy provider template folder
             shutil.copytree(self.provider, dir_path)
+            
+            # Remove outputs.tf if using shared VPC (will create custom one)
+            if use_shared_vpc and os.path.exists(os.path.join(dir_path, 'outputs.tf')):
+                os.remove(os.path.join(dir_path, 'outputs.tf'))
 
             # Modify topology with unique suffix
             modified_topology = self.modify_topology(original_topology, suffix)
@@ -697,6 +707,11 @@ class TerraformGenerator:
             config_content = self.generate_config_content(validated_map, use_shared_vpc)
             with open(os.path.join(dir_path, 'main.tf'), 'w', encoding='utf-8') as f:
                 f.write(config_content)
+            
+            # Generate outputs.tf for shared VPC mode
+            if use_shared_vpc and self.provider == "aws":
+                with open(os.path.join(dir_path, 'outputs.tf'), 'w', encoding='utf-8') as f:
+                    f.write(tf_tpl.aws_instance_only_outputs_block())
 
             # Update variables.tf with discovered config for OpenStack
             if self.provider == 'openstack' and self.openstack_config:

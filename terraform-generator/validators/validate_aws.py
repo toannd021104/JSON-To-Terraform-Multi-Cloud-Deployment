@@ -6,9 +6,9 @@ import boto3
 from botocore.exceptions import ClientError
 
 class AWSUtils:
-    # Default AMIs
+    # Default AMIs (updated January 2026)
     DEFAULT_AMIS = {
-        'ubuntu': 'ami-03f8acd418785369b',  # Ubuntu 22.04 LTS x86_64
+        'ubuntu': 'ami-0030e4319cbf4dbf2',  # Ubuntu 22.04 LTS x86_64 (us-east-1)
         'windows': 'ami-005148a6a3abb558a',  # Windows Server 2022 Base
     }
     
