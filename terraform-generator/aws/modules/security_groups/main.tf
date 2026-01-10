@@ -1,4 +1,4 @@
-# Look up the default security group in the specified VPC
+# Look up the default security group in the VPC
 data "aws_security_group" "default" {
   vpc_id = var.vpc_id
   name   = "default"
@@ -36,7 +36,7 @@ locals {
   }
 
   # Only manage the requested security groups (excluding "default")
-    groups_to_manage = {
+  groups_to_manage = {
     for name, rules in local.predefined_rules :
     name => rules if contains(var.required_security_groups, name) && name != "default"
   }
@@ -75,7 +75,18 @@ resource "aws_security_group" "this" {
   }
 }
 
-# Output map of all security group IDs, including default
+# Add ingress rule to AWS default security group to allow all traffic
+resource "aws_security_group_rule" "default_allow_all_ingress" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = data.aws_security_group.default.id
+  description       = "Allow all inbound traffic"
+}
+
+# Output map of all security group IDs
 output "group_ids" {
   value = merge(
     { "default" = data.aws_security_group.default.id },

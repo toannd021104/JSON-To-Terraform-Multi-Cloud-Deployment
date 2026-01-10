@@ -56,11 +56,10 @@ TOPOLOGY_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "cidr", "gateway_ip"],
+                "required": ["name", "cidr"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
                     "cidr": {"type": "string", "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/[0-9]{1,2}$"},
-                    # Allow null to mean "let the provider pick a gateway"
                     "gateway_ip": {"type": ["string", "null"], "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"},
                     "enable_dhcp": {"type": "boolean"},
                     "pool": {"type": "array"}

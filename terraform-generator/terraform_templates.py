@@ -149,10 +149,10 @@ def aws_instance_only_outputs_block():
       }
     }
 
-    output "instance_ids" {
-      description = "Map of instance names to IDs"
+    output "instance_public_ips" {
+      description = "Map of instance names to public IPs (if assigned)"
       value = {
-        for k, v in module.instance : k => v.id
+        for k, v in module.instance : k => v.public_ip
       }
     }
     """)
@@ -380,32 +380,32 @@ def aws_shared_vpc_outputs_block():
     }
     """)
 
-def aws_shared_vpc_variables_block():
+def aws_shared_vpc_variables_block(vpc_cidr="192.168.0.0/16", public_subnet_cidr="192.168.0.0/24"):
     """Variables for shared VPC"""
-    return textwrap.dedent("""
-    variable "aws_region" {
+    return textwrap.dedent(f"""
+    variable "aws_region" {{
       description = "AWS Region"
       type        = string
       default     = "us-west-2"
-    }
+    }}
 
-    variable "vpc_cidr_block" {
+    variable "vpc_cidr_block" {{
       description = "CIDR block for VPC"
       type        = string
-      default     = "192.168.0.0/16"
-    }
+      default     = "{vpc_cidr}"
+    }}
 
-    variable "public_subnet_cidrs" {
+    variable "public_subnet_cidrs" {{
       description = "CIDR blocks for public subnets"
       type        = list(string)
-      default     = ["192.168.0.0/24"]
-    }
+      default     = ["{public_subnet_cidr}"]
+    }}
 
-    variable "availability_zones" {
+    variable "availability_zones" {{
       description = "Availability Zones"
       type        = list(string)
       default     = ["us-west-2a"]
-    }
+    }}
     """)
 
 def aws_instance_with_remote_state_block(validated_map):
@@ -443,8 +443,8 @@ def aws_instance_with_remote_state_block(validated_map):
 
       instance_name     = each.value.name
       # Lookup AMI and instance type based on instance name
-      ami_id            = lookup({json.dumps(validated_map)}, each.key, {{}}).ami
-      instance_type     = lookup({json.dumps(validated_map)}, each.key, {{}}).instance_type
+      ami_id            = lookup(lookup({json.dumps(validated_map)}, each.key, {{}}), "ami", "ami-0030e4319cbf4dbf2")
+      instance_type     = lookup(lookup({json.dumps(validated_map)}, each.key, {{}}), "instance_type", "t2.small")
       # Use subnet from remote state
       subnet_id         = data.terraform_remote_state.vpc.outputs.private_subnet_ids[each.value.networks[0].name]
       fixed_ip          = each.value.networks[0].ip

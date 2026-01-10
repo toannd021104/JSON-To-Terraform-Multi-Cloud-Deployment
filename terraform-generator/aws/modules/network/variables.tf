@@ -10,8 +10,8 @@ variable "private_subnets" {
   type = list(object({
     name        = string
     cidr        = string
-    pool        = list(string)
-    gateway_ip  = string
+    pool        = optional(list(string), [])
+    gateway_ip  = optional(string, null)
     enable_dhcp = bool
   }))
 }
@@ -23,14 +23,14 @@ variable "availability_zones" {
 variable "routers" {
   type = list(object({
     name     = string
-    networks = list(object({
+    networks = optional(list(object({
       name = string
       ip   = string
-    }))
+    })), [])
     external = bool
-    routes   = list(object({
+    routes   = optional(list(object({
       cidr_block = string
       gateway_id = string
-    }))
+    })), [])
   }))
 }

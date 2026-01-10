@@ -22,8 +22,9 @@ resource "aws_subnet" "public_subnet" {
 }
 
 # Create private subnets defined in variable
+# Only create subnets that have gateway_ip (skip transit networks)
 resource "aws_subnet" "private_subnet" {
-  for_each = { for net in var.private_subnets : net.name => net }
+  for_each = { for net in var.private_subnets : net.name => net if net.gateway_ip != null && net.gateway_ip != "" }
 
   vpc_id            = aws_vpc.main.id
   cidr_block        = each.value.cidr
@@ -87,46 +88,28 @@ resource "aws_nat_gateway" "nat" {
   }
 }
 
-# Create private route tables
+# Create private route table (shared by all private subnets)
 resource "aws_route_table" "private" {
-  for_each = { for r in var.routers : r.name => r }
-
   vpc_id = aws_vpc.main.id
 
-  # Add default route to NAT if router is external
+  # Add default route to NAT if any router is external
   dynamic "route" {
-    for_each = each.value.external && length(aws_nat_gateway.nat) > 0 ? [1] : []
+    for_each = length(aws_nat_gateway.nat) > 0 ? [1] : []
     content {
-      cidr_block = "0.0.0.0/0"
-      gateway_id = aws_nat_gateway.nat[0].id
-    }
-  }
-
-  # Add custom routes
-  dynamic "route" {
-    for_each = each.value.routes
-    content {
-      cidr_block = route.value.cidr_block
-      gateway_id = route.value.gateway_id
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = aws_nat_gateway.nat[0].id
     }
   }
 
   tags = {
-    Name = "private-rt-${each.key}"
+    Name = "private-rt"
   }
 }
 
-# Associate private subnets with their route tables
+# Associate all private subnets with the shared private route table
 resource "aws_route_table_association" "private" {
-  for_each = merge([
-    for r in var.routers : {
-      for net in r.networks : "${r.name}-${net.name}" => {
-        subnet_id      = aws_subnet.private_subnet[net.name].id
-        route_table_id = aws_route_table.private[r.name].id
-      }
-    }
-  ]...)
+  for_each = aws_subnet.private_subnet
 
-  subnet_id      = each.value.subnet_id
-  route_table_id = each.value.route_table_id
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private.id
 }
