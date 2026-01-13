@@ -104,4 +104,4 @@ coverage/
 
 # Folder for generated terraform projects and benchmark logs
 terraform-projects/
-benchmark_logs/evaluation/
+evaluation/

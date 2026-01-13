@@ -295,13 +295,13 @@ def interactive():
     ).ask()
 
     if save:
-        output_path = Path(__file__).parent.parent / "terraform-generator" / "topology.json"
+        output_path = Path(__file__).parent.parent / "generate" / "topology.json"
         with open(output_path, "w") as f:
             json.dump(topology, f, indent=2)
         console.print(f"[green]Saved:[/green] {output_path}")
         console.print("\n[bold]Next steps:[/bold]")
-        console.print("  cd terraform-generator")
-        console.print("  python3 generate.py [aws|openstack] <copies>")
+        console.print("  cd generate")
+        console.print("  python3 terraform_generator.py [aws|openstack] <copies>")
         console.print()
     else:
         console.print("[dim]Not saved[/dim]")
@@ -352,7 +352,7 @@ def generate(
     if output.startswith("/"):
         output_path = Path(output)
     else:
-        output_path = Path(__file__).parent.parent / "terraform-generator" / output
+        output_path = Path(__file__).parent.parent / "generate" / output
 
     with open(output_path, "w") as f:
         json.dump(topology, f, indent=2)
