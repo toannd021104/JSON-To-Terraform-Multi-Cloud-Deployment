@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to run terraform destroy on all project folders
-# Usage: cd terraform-generator && ./scripts/destroy_all_terraform_projects.sh
+# Usage: cd generate && ./scripts/destroy_all_terraform_projects.sh
 
 set +e  # Don't exit on error
 

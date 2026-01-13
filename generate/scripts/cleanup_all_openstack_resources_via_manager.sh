@@ -6,7 +6,7 @@
 set -e
 PYTHON="python3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANAGER="$SCRIPT_DIR/../openstack_config_manager.py"
+MANAGER="$SCRIPT_DIR/../../configs/openstack_config_manager.py"
 
 run() {
   $PYTHON "$MANAGER" openstack "$@"

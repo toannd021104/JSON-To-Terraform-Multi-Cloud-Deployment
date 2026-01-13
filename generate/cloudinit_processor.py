@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Cloud-Init Processor Module
-Integrates cloud-init into terraform-generator workflow
+Integrates cloud-init into generate workflow
 """
 import os
 import sys
@@ -17,11 +17,9 @@ except ImportError:
     RICH_AVAILABLE = False
     console = None
 
-# Path to cloud-init-generator directory
-CLOUD_INIT_GENERATOR_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "cloud-init-generator"
-)
+# Thư mục chứa generator và user-data JSON (theo cấu trúc mới)
+CLOUD_INIT_ROOT = os.path.dirname(__file__)
+CLOUD_INIT_USERDATA_DIR = os.path.join(CLOUD_INIT_ROOT, "userdata")
 
 
 def detect_os_type(image_name: str) -> str:
@@ -42,18 +40,18 @@ def detect_os_type(image_name: str) -> str:
 
 def find_cloud_init_json(cloud_init_filename: str) -> Optional[str]:
     """
-    Find cloud-init JSON file in cloud-init-generator directory
+    Find cloud-init JSON file in generate/userdata directory
     Returns: Full path to the JSON file or None if not found
     """
-    # Try to find the file in cloud-init-generator directory
-    json_path = os.path.join(CLOUD_INIT_GENERATOR_DIR, cloud_init_filename)
+    # Try to find the file in generate/userdata directory
+    json_path = os.path.join(CLOUD_INIT_USERDATA_DIR, cloud_init_filename)
 
     if os.path.exists(json_path):
         return json_path
 
     # Also check without extension if user provided name without .json
     if not cloud_init_filename.endswith('.json'):
-        json_path_with_ext = os.path.join(CLOUD_INIT_GENERATOR_DIR, f"{cloud_init_filename}.json")
+        json_path_with_ext = os.path.join(CLOUD_INIT_USERDATA_DIR, f"{cloud_init_filename}.json")
         if os.path.exists(json_path_with_ext):
             return json_path_with_ext
 
@@ -62,7 +60,7 @@ def find_cloud_init_json(cloud_init_filename: str) -> Optional[str]:
 
 def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> bool:
     """
-    Generate cloud-config using external generate_cloudinit.py script
+    Generate cloud-config using external cloudinit_generator.py script
 
     Args:
         json_path: Path to cloud-init JSON file
@@ -72,8 +70,8 @@ def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> boo
     Returns: True if successful, False otherwise
     """
     try:
-        # Path to generate_cloudinit.py script
-        generator_script = os.path.join(CLOUD_INIT_GENERATOR_DIR, "generate_cloudinit.py")
+        # Path to generator script trong generate/
+        generator_script = os.path.join(CLOUD_INIT_ROOT, "cloudinit_generator.py")
 
         if not os.path.exists(generator_script):
             if RICH_AVAILABLE:
@@ -82,7 +80,7 @@ def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> boo
                 print(f"    ✗ Generator script not found: {generator_script}")
             return False
 
-        # Build command: python3 generate_cloudinit.py input.json -o output.yaml
+        # Build command: python3 cloudinit_generator.py input.json -o output.yaml
         cmd = [
             sys.executable,  # Use same Python interpreter
             generator_script,
@@ -95,7 +93,7 @@ def generate_cloud_config(json_path: str, os_type: str, output_path: str) -> boo
             cmd,
             capture_output=True,
             text=True,
-            cwd=CLOUD_INIT_GENERATOR_DIR
+            cwd=CLOUD_INIT_ROOT
         )
 
         if result.returncode != 0:

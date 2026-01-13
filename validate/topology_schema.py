@@ -166,10 +166,10 @@ def find_similar_name(name: str, valid_names: List[str], threshold: float = 0.6)
 
 def validate_cloud_init_file(cloud_init_path: str, provider: str) -> str:
     """
-    Check if cloud-init JSON file exists in cloud-init-generator directory
+    Check if cloud-init JSON file exists in generate/userdata directory
     Returns error message if not found, None if valid
     """
-    cloud_init_gen_dir = os.path.join(os.path.dirname(__file__), "..", "..", "cloud-init-generator")
+    cloud_init_gen_dir = os.path.join(os.path.dirname(__file__), "..", "generate", "userdata")
 
     # Try exact filename
     full_path = os.path.join(cloud_init_gen_dir, cloud_init_path)
@@ -182,7 +182,7 @@ def validate_cloud_init_file(cloud_init_path: str, provider: str) -> str:
         if os.path.isfile(full_path_with_ext):
             return None
 
-    return f"Cloud-init file '{cloud_init_path}' not found in cloud-init-generator directory"
+    return f"Cloud-init file '{cloud_init_path}' not found in generate/userdata directory"
 
 
 # =============================================================================

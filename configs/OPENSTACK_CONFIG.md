@@ -9,7 +9,7 @@ Hệ thống tự động quản lý nhiều profile OpenStack khác nhau và t�
 ```
 openstack_config.json          # File cấu hình chính (chứa credentials)
 openstack_config.json.template # Template mẫu
-openstack_config_manager.py    # Module quản lý config
+configs/openstack_config_manager.py    # Module quản lý config
 ```
 
 ## Cách sử dụng
@@ -17,7 +17,7 @@ openstack_config_manager.py    # Module quản lý config
 ### 1. Setup Profile Mới (Interactive)
 
 ```bash
-python3 openstack_config_manager.py setup
+python3 configs/openstack_config_manager.py setup
 ```
 
 Sẽ hỏi:
@@ -32,19 +32,19 @@ Sẽ hỏi:
 ### 2. Liệt kê các Profile
 
 ```bash
-python3 openstack_config_manager.py list
+python3 configs/openstack_config_manager.py list
 ```
 
 ### 3. Chuyển đổi Profile
 
 ```bash
-python3 openstack_config_manager.py switch --profile <profile_name>
+python3 configs/openstack_config_manager.py switch --profile <profile_name>
 ```
 
 ### 4. Auto-discover Resources
 
 ```bash
-python3 openstack_config_manager.py discover
+python3 configs/openstack_config_manager.py discover
 ```
 
 Tự động tìm:
@@ -57,7 +57,7 @@ Tự động tìm:
 ### 5. Export sang Terraform Variables
 
 ```bash
-python3 openstack_config_manager.py export --output terraform.tfvars
+python3 configs/openstack_config_manager.py export --output terraform.tfvars
 ```
 
 ## File cấu hình (openstack_config.json)
@@ -96,7 +96,7 @@ python3 openstack_config_manager.py export --output terraform.tfvars
 
 ## Tích hợp với Generate.py
 
-Khi chạy `python3 generate.py openstack 1`, hệ thống sẽ:
+Khi chạy `python3 terraform_generator.py openstack 1`, hệ thống sẽ:
 
 1. **Tự động load** `openstack_config.json`
 2. **Discover** external network và endpoints
@@ -109,14 +109,14 @@ Khi chạy `python3 generate.py openstack 1`, hệ thống sẽ:
 
 ```bash
 # 1. Tạo profile mới
-python3 openstack_config_manager.py setup
+python3 configs/openstack_config_manager.py setup
 # Nhập thông tin endpoint mới
 
 # 2. Chuyển sang profile mới
-python3 openstack_config_manager.py switch --profile new_profile
+python3 configs/openstack_config_manager.py switch --profile new_profile
 
 # 3. Generate Terraform như bình thường
-python3 generate.py openstack 1
+python3 terraform_generator.py openstack 1
 # Tự động dùng credentials từ profile mới
 ```
 
@@ -141,12 +141,12 @@ python3 generate.py openstack 1
 
 ```bash
 # Deploy lên test
-python3 openstack_config_manager.py switch --profile test
-python3 generate.py openstack 1
+python3 configs/openstack_config_manager.py switch --profile test
+python3 terraform_generator.py openstack 1
 
 # Deploy lên prod
-python3 openstack_config_manager.py switch --profile prod
-python3 generate.py openstack 1
+python3 configs/openstack_config_manager.py switch --profile prod
+python3 terraform_generator.py openstack 1
 ```
 
 ## Lợi ích
@@ -181,7 +181,7 @@ terraform.tfvars
 
 ### Lỗi "No config found"
 
-→ Chạy `python3 openstack_config_manager.py setup` để tạo config
+→ Chạy `python3 configs/openstack_config_manager.py setup` để tạo config
 
 ### Lỗi "OpenStack SDK not available"
 

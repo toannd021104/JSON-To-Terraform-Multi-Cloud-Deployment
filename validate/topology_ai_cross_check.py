@@ -21,9 +21,10 @@ import sys
 import difflib
 from typing import Any, Dict, List, Tuple
 
-# Make sure we can import sibling validator
-sys.path.insert(0, os.path.dirname(__file__))
-from validate_json import validate_topology_file  # noqa: E402
+# Thêm root để import theo cấu trúc module mới
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, ROOT_DIR)
+from validate.topology_schema import validate_topology_file  # noqa: E402
 
 # Optional Rich UI
 try:

@@ -4,10 +4,10 @@ import sys
 import os
 from typing import List, Dict
 
-# Import config manager
+# Import config manager từ module configs
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 try:
-    from openstack_config_manager import OpenStackConfigManager
+    from configs.openstack_config_manager import OpenStackConfigManager
     CONFIG_MANAGER_AVAILABLE = True
 except ImportError:
     CONFIG_MANAGER_AVAILABLE = False

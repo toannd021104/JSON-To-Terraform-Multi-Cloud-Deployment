@@ -18,11 +18,11 @@ THỨ TỰ THỰC THI:
    └─ generate_configs()             : Generate Terraform files + terraform apply
 
 DEPENDENCIES:
-- validate_json        : JSON schema validation
-- ai_fixer            : Gemini AI auto-fix (single AI)
-- ai_cross_checker    : OpenAI + Gemini cross-check (dual AI)
-- terraform_templates : Generate Terraform HCL code
-- cloud_init_processor: Process cloud-init user-data
+- topology_schema      : JSON schema validation
+- topology_ai_fixer    : Gemini AI auto-fix (single AI)
+- topology_ai_cross_check: OpenAI + Gemini cross-check (dual AI)
+- terraform_templates  : Generate Terraform HCL code
+- cloudinit_processor  : Process cloud-init user-data
 ═══════════════════════════════════════════════════════════════════════════════
 """
 import json
@@ -32,21 +32,23 @@ import os
 import shutil
 from datetime import datetime
 
-# Add validators directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'validators'))
+# Thêm root vào sys.path để import theo cấu trúc module mới
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+PROVIDERS_DIR = os.path.join(ROOT_DIR, "providers")
+sys.path.insert(0, ROOT_DIR)
 
-from validate_json import validate_topology_file
+from validate.topology_schema import validate_topology_file
 
 # OpenStack config manager
 try:
-    from openstack_config_manager import OpenStackConfigManager
+    from configs.openstack_config_manager import OpenStackConfigManager
     CONFIG_MANAGER_AVAILABLE = True
 except ImportError:
     CONFIG_MANAGER_AVAILABLE = False
 
 # AI-powered fixer using Gemini (single AI)
 try:
-    from ai_fixer import fix_topology_with_ai, display_fix_preview, apply_fix, GEMINI_AVAILABLE
+    from validate.topology_ai_fixer import fix_topology_with_ai, display_fix_preview, apply_fix, GEMINI_AVAILABLE
     AI_FIXER_AVAILABLE = True
 except ImportError:
     AI_FIXER_AVAILABLE = False
@@ -54,14 +56,20 @@ except ImportError:
 
 # Dual-AI cross-checker (OpenAI + Gemini)
 try:
-    from ai_cross_checker import fix_with_openai, review_with_gemini, render_diff, load_topology, save_topology
+    from validate.topology_ai_cross_check import fix_with_openai, review_with_gemini, render_diff, load_topology, save_topology
     DUAL_AI_AVAILABLE = True
 except ImportError:
     DUAL_AI_AVAILABLE = False
 
-import terraform_templates as tf_tpl
+from generate import terraform_templates as tf_tpl
+# Các helper nhân bản topology được tách sang module clone
+from clone.topology_cloner import (
+    calculate_vpc_cidr,
+    collect_all_networks_and_routers,
+    modify_topology,
+)
 import subprocess
-import cloud_init_processor
+from generate import cloudinit_processor as cloud_init_processor
 
 # Rich library for colored terminal output
 try:
@@ -485,17 +493,17 @@ class TerraformGenerator:
         if RICH_AVAILABLE:
             with console.status(f"[dim]Validating {self.provider.upper()} resources...[/dim]", spinner="dots"):
                 if self.provider == "aws":
-                    from validate_aws import AWSUtils
+                    from validate.cloud_resources_aws import AWSUtils
                     self.validated_resources = AWSUtils().validate_resources(self.topology)
                 elif self.provider == "openstack":
-                    from validate_openstack import validate_resources
+                    from validate.cloud_resources_openstack import validate_resources
                     self.validated_resources = validate_resources(self.topology)
         else:
             if self.provider == "aws":
-                from validate_aws import AWSUtils
+                from validate.cloud_resources_aws import AWSUtils
                 self.validated_resources = AWSUtils().validate_resources(self.topology)
             elif self.provider == "openstack":
-                from validate_openstack import validate_resources
+                from validate.cloud_resources_openstack import validate_resources
                 self.validated_resources = validate_resources(self.topology)
 
         # Exit on resource validation failure
@@ -637,118 +645,6 @@ class TerraformGenerator:
                 tf_tpl.os_instance_module_block(validated_map)
             )
 
-    def calculate_vpc_cidr(self, networks):
-        """
-        ═══════════════════════════════════════════════════════════════════════
-        AUTO-DETECT VPC CIDR (AWS Only)
-        ═══════════════════════════════════════════════════════════════════════
-        
-        CHỨC NĂNG:
-        - Phân tích tất cả subnets trong topology
-        - Tìm dải mạng chung (supernet) bao phủ tất cả subnets
-        
-        LOGIC:
-        1. Parse tất cả network CIDRs
-        2. Lấy 2 octets đầu từ subnet đầu tiên
-        3. Kiểm tra xem tất cả subnets có cùng 2 octets không
-           - Có: Return X.Y.0.0/16 (VD: 192.168.0.0/16)
-           - Không: Return X.0.0.0/16 (VD: 192.0.0.0/16)
-        
-        EXAMPLES:
-        - Input: [192.168.20.0/24, 192.168.30.0/24]
-          Output: 192.168.0.0/16 ✓
-        
-        - Input: [192.168.10.0/24, 10.10.10.0/24]
-          Output: 192.0.0.0/16 (broader range)
-        
-        AWS CONSTRAINTS:
-        - VPC CIDR phải từ /16 đến /28
-        - Không support /8 → Luôn return /16
-        ═══════════════════════════════════════════════════════════════════════
-        """
-        if not networks:
-            return "10.0.0.0/16"  # Default fallback
-        
-        import ipaddress
-        
-        # Parse all network CIDRs
-        subnets = []
-        for net in networks:
-            try:
-                subnet = ipaddress.ip_network(net['cidr'], strict=False)
-                subnets.append(subnet)
-            except:
-                continue
-        
-        if not subnets:
-            return "10.0.0.0/16"
-        
-        # Find common prefix (supernet)
-        # Get first 2 octets from first subnet
-        first_ip = str(subnets[0].network_address)
-        octets = first_ip.split('.')
-        
-        # Check if all subnets share first 2 octets (Class B)
-        common_prefix = f"{octets[0]}.{octets[1]}"
-        for subnet in subnets:
-            subnet_ip = str(subnet.network_address)
-            if not subnet_ip.startswith(common_prefix):
-                # Different ranges, use first octet /16 (AWS requires /16-/28)
-                return f"{octets[0]}.0.0.0/16"
-        
-        # All subnets in same /16 range
-        return f"{common_prefix}.0.0/16"
-
-    def collect_all_networks_and_routers(self, original_topology, suffixes):
-        """
-        ═══════════════════════════════════════════════════════════════════════
-        COLLECT NETWORKS & ROUTERS (Multi-copy deployment)
-        ═══════════════════════════════════════════════════════════════════════
-        
-        CHỨC NĂNG:
-        - Clone networks/routers với unique suffixes cho multi-copy deployment
-        - Update network references trong routers
-        - Remove OpenStack-specific fields khi generate cho AWS
-        
-        LOGIC:
-        - Suffix format: 6-char random hex (VD: 3c4172)
-        - Network: core-net → core-net_3c4172, core-net_a1b2c3
-        - Router: core-router → core-router_3c4172, core-router_a1b2c3
-        
-        AWS-SPECIFIC:
-        - Xóa router.routes (AWS không support static routes như OpenStack)
-        - Routers chỉ dùng để xác định external=true → Tạo NAT Gateway
-        
-        RETURN:
-        - all_networks: List of all networks from all copies
-        - all_routers: List of all routers from all copies
-        ═══════════════════════════════════════════════════════════════════════
-        """
-        all_networks = []
-        all_routers = []
-
-        for suffix in suffixes:
-            # Clone networks with suffix
-            for net in original_topology.get('networks', []):
-                modified_net = net.copy()
-                modified_net['name'] = f"{net['name']}_{suffix}"
-                all_networks.append(modified_net)
-
-            # Clone routers with suffix and update network references
-            for router in original_topology.get('routers', []):
-                modified_router = router.copy()
-                modified_router['name'] = f"{router['name']}_{suffix}"
-                modified_router['networks'] = [
-                    {**net_ref, 'name': f"{net_ref['name']}_{suffix}"}
-                    for net_ref in router.get('networks', [])
-                ]
-                # For AWS: remove OpenStack-specific fields (routes)
-                if self.provider == 'aws':
-                    modified_router['routes'] = []
-                all_routers.append(modified_router)
-
-        return all_networks, all_routers
-
     def create_shared_vpc_folder(self, main_folder, original_topology, suffixes):
         """Create shared VPC folder with all networks for AWS multi-copy deployment"""
         shared_vpc_path = os.path.join(main_folder, "00-shared-vpc")
@@ -760,20 +656,24 @@ class TerraformGenerator:
             print(f"\n Creating shared VPC folder: {shared_vpc_path}")
 
         # Copy AWS modules to shared VPC folder
-        aws_modules_src = os.path.join(self.provider, "modules")
+        aws_modules_src = os.path.join(PROVIDERS_DIR, self.provider, "modules")
         aws_modules_dst = os.path.join(shared_vpc_path, "modules")
         if os.path.exists(aws_modules_src):
             shutil.copytree(aws_modules_src, aws_modules_dst)
 
         # Collect all networks/routers from all copies
-        all_networks, all_routers = self.collect_all_networks_and_routers(original_topology, suffixes)
+        all_networks, all_routers = collect_all_networks_and_routers(
+            original_topology,
+            suffixes,
+            self.provider
+        )
         
         # Calculate VPC CIDR for AWS (only from networks with gateway_ip)
         vpc_cidr = "192.168.0.0/16"  # Default
         if self.provider == 'aws' and all_networks:
             networks_with_gateway = [net for net in all_networks if net.get('gateway_ip')]
             if networks_with_gateway:
-                vpc_cidr = self.calculate_vpc_cidr(networks_with_gateway)
+                vpc_cidr = calculate_vpc_cidr(networks_with_gateway)
         
         # Calculate public subnet CIDR from VPC CIDR (avoid conflicts with topology subnets)
         import ipaddress
@@ -872,14 +772,14 @@ class TerraformGenerator:
         """Create a single Terraform folder with modified topology"""
         try:
             # Copy provider template folder
-            shutil.copytree(self.provider, dir_path)
+            shutil.copytree(os.path.join(PROVIDERS_DIR, self.provider), dir_path)
             
             # Remove outputs.tf if using shared VPC (will create custom one)
             if use_shared_vpc and os.path.exists(os.path.join(dir_path, 'outputs.tf')):
                 os.remove(os.path.join(dir_path, 'outputs.tf'))
 
             # Modify topology with unique suffix
-            modified_topology = self.modify_topology(original_topology, suffix)
+            modified_topology = modify_topology(original_topology, suffix)
             with open(os.path.join(dir_path, 'topology.json'), 'w') as f:
                 json.dump(modified_topology, f, indent=2)
 
@@ -941,28 +841,6 @@ class TerraformGenerator:
 
         except Exception as e:
             print(f"  Warning: Could not process cloud-init configs: {e}")
-
-    def modify_topology(self, topology, suffix):
-        """Add unique suffix to all resource names in topology"""
-        modified = json.loads(json.dumps(topology))  # Deep copy
-
-        # Add suffix to instance names and their network references
-        for inst in modified.get('instances', []):
-            inst['name'] = f"{inst['name']}_{suffix}"
-            for net in inst.get('networks', []):
-                net['name'] = f"{net['name']}_{suffix}"
-
-        # Add suffix to network names
-        for net in modified.get('networks', []):
-            net['name'] = f"{net['name']}_{suffix}"
-
-        # Add suffix to router names and their network references
-        for router in modified.get('routers', []):
-            router['name'] = f"{router['name']}_{suffix}"
-            for net in router.get('networks', []):
-                net['name'] = f"{net['name']}_{suffix}"
-
-        return modified
 
     def update_openstack_variables(self, dir_path):
         """Update variables.tf with discovered OpenStack configuration"""
@@ -1067,9 +945,9 @@ TERRAFORM CONFIG GENERATOR
     if len(sys.argv) < 2 or sys.argv[1].lower() not in ["aws", "openstack"]:
         if RICH_AVAILABLE:
             console.print("\n[red]Error:[/red] Invalid usage")
-            console.print("[dim]Usage: python3 generate.py [aws|openstack] [num_copies][/dim]")
+            console.print("[dim]Usage: python3 terraform_generator.py [aws|openstack] [num_copies][/dim]")
         else:
-            print("\n[ERROR] Usage: python3 generate.py [aws|openstack] [num_copies]")
+            print("\n[ERROR] Usage: python3 terraform_generator.py [aws|openstack] [num_copies]")
         sys.exit(1)
 
     provider = sys.argv[1].lower()

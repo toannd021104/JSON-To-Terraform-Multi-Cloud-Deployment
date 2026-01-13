@@ -5,10 +5,10 @@ Quản lý credentials OpenStack tập trung, hỗ trợ nhiều profiles và t�
 phát hiện tài nguyên (external networks, service endpoints).
 
 Sử dụng:
-    python3 openstack_config_manager.py setup    # Tạo profile mới
-    python3 openstack_config_manager.py list     # Xem danh sách profiles
-    python3 openstack_config_manager.py discover # Tự động tìm external network
-    python3 openstack_config_manager.py export   # Xuất ra terraform.tfvars
+    python3 configs/openstack_config_manager.py setup    # Tạo profile mới
+    python3 configs/openstack_config_manager.py list     # Xem danh sách profiles
+    python3 configs/openstack_config_manager.py discover # Tự động tìm external network
+    python3 configs/openstack_config_manager.py export   # Xuất ra terraform.tfvars
 """
 import json, os, sys
 

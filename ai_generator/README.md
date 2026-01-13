@@ -64,13 +64,13 @@ python3 ai_generator/topology_generator.py --help
 
 Generated topology.json will be saved to:
 ```
-terraform-generator/topology.json
+generate/topology.json
 ```
 
 Then you can run:
 ```bash
-cd terraform-generator
-python3 generate.py [aws|openstack] <copies>
+cd generate
+python3 terraform_generator.py [aws|openstack] <copies>
 ```
 
 ## Requirements

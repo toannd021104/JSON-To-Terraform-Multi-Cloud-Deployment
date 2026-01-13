@@ -29,7 +29,11 @@ except ImportError:
     genai = None
     GEMINI_AVAILABLE = False
 
-from validate_cloudinit import collect_errors, format_path, get_custom_message
+# Thêm root để import theo cấu trúc module mới
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, ROOT_DIR)
+
+from validate.userdata_schema import collect_errors, format_path, get_custom_message
 
 
 app = typer.Typer(help="AI-powered validator for cloud-init / cloudbase-init user-data JSON")

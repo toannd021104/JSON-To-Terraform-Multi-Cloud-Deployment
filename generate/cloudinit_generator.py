@@ -4,7 +4,12 @@ import json
 import sys
 from typing import Any, Dict
 import yaml
-from validate_cloudinit import validate
+import os
+
+# Thêm root để import schema theo cấu trúc module mới
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, ROOT_DIR)
+from validate.userdata_schema import validate
 import hashlib
 import re
 
@@ -66,55 +71,90 @@ def convert_to_cloudbase_init(data: Dict[str, Any]) -> Dict[str, Any]:
 
         script1 = 'powershell.exe -ExecutionPolicy Bypass -File "C:\\Windows\\Temp\\install-choco.ps1"'
         script2 = 'powershell.exe -Command "choco feature enable -n=allowGlobalConfirmation"'
-        script3 = 'powershell.exe -Command "choco install git -y"'
 
         cloud_config["runcmd"].append(script1)
         cloud_config["runcmd"].append(script2)
-        cloud_config["runcmd"].append(script3)
+        packages = data.get("package", [])
+        for pkg in packages:
+            if isinstance(pkg, dict):
+                pkg_name = pkg.get("name")
+            else:
+                pkg_name = pkg
+            if not pkg_name:
+                continue
+            cloud_config["runcmd"].append(
+                f'powershell.exe -Command "choco install {pkg_name} -y"'
+            )
 
     # Process user provided files
     if "files" in data:
         for f in data["files"]:
             if f["type"] == "file":
-                entry = {
-                    "path": f["path"],
-                    "permissions": f.get("mode", "0644")
-                }
+                if "runcmd" not in cloud_config:
+                    cloud_config["runcmd"] = []
+
+                path = f["path"]
 
                 if "content" in f:
-                    cleaned = f["content"].replace('\\n', '\n').strip()
-                    entry["content"] = literal_str(cleaned + '\n')
+                    entry = {
+                        "path": path,
+                        "permissions": f.get("mode", "0644")
+                        
+                    }
+                    cleaned_content = f["content"].replace('\\n', '\n').strip()
+                    entry["content"] = literal_str(cleaned_content + '\n')
+                    write_files_list.append(entry)
+                    continue  # Use write_files instead of runcmd only for writefiles has content field
+                    
+
                 elif "source" in f:
-                    entry["source"] = {"uri": f["source"]}
+                    url = f["source"]
+                    cmd = (
+                        f"Invoke-WebRequest -Uri '{url}' "
+                        f"-OutFile '{path}' "
+                        f"-UseBasicParsing"
+                    )
 
-                if "encoding" in f:
-                    entry["encoding"] = f["encoding"]
-
-                if f.get("append"):
-                    entry["append"] = True
-                if f.get("defer"):
-                    entry["defer"] = True
-
-                write_files_list.append(entry)
+                cloud_config["runcmd"].append(InlineList([
+                    "powershell.exe",
+                    "-ExecutionPolicy", "Bypass",
+                    "-Command", literal_str(cmd)  
+                ]))
 
             elif f["type"] == "dir":
                 if "runcmd" not in cloud_config:
                     cloud_config["runcmd"] = []
 
-                mode = f.get("mode", "0755")
-                owner = f.get("owner", "root:root")
-                cmd = f"mkdir -p {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
-                cloud_config["runcmd"].append(["sh", "-c", cmd])
+                path = f["path"]
+
+                cmd = f"New-Item -ItemType Directory -Path '{path}' -Force"
+
+                cloud_config["runcmd"].append(InlineList([
+                    "powershell.exe",
+                    "-ExecutionPolicy", "Bypass",
+                    "-Command", literal_str(cmd)
+                ]))
 
             elif f["type"] == "link":
                 if "runcmd" not in cloud_config:
                     cloud_config["runcmd"] = []
 
-                mode = f.get("mode", "0755")
-                owner = f.get("owner", "root:root")
-                cmd = f"ln -sf {f.get('target', '')} {f['path']} && chmod {mode} {f['path']} && chown {owner} {f['path']}"
-                cloud_config["runcmd"].append(["sh", "-c", cmd])
+                target = f.get("target", "")
+                path = f["path"]
 
+                cmd = (
+                    f"New-Item -ItemType SymbolicLink "
+                    f"-Path '{path}' "
+                    f"-Target '{target}' "
+                    f"-Force"
+                )
+
+                cloud_config["runcmd"].append(InlineList([
+                    "powershell.exe",
+                    "-ExecutionPolicy", "Bypass",
+                    "-Command", cmd
+                ]))
+ 
     # Finally assign back
     if write_files_list:
         cloud_config["write_files"] = write_files_list

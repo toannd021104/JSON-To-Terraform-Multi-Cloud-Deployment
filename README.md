@@ -17,7 +17,7 @@ Use a unified, abstract topology model to capture infrastructure independently f
 - Unified topology description using structured JSON/YAML
 - Early structural and semantic validation (topology, networking, user-data)
 - Automatic Terraform generation for AWS and OpenStack
-- Standardized cloud-init/user-data handling for multiple OS targets
+- Standardized user-data handling for multiple OS targets
 - Environment cloning with deterministic suffixing to avoid collisions
 - Optional AI assistance to author or auto-fix topology and validate user-data
 
@@ -27,19 +27,22 @@ Input (topology + user-data) → schema + semantic validation (networking, user-
 
 ## Repository Structure
 
-- ai_generator/          AI-assisted topology authoring CLI
-- cloud-init-generator/  Cloud-init templates and validators (schema + AI review)
-- terraform-generator/   Topology validation and Terraform artifact generation
-- terraform-projects/    Generated Terraform projects per provider/environment
-- pre-template/          Supporting templates and assets
-- requirements.txt       Python dependencies
+- validate/ Topology + user-data validation (schema + AI review)
+- generate/ Terraform + cloud-init generation
+- clone/ Multi-copy infrastructure cloning helpers
+- providers/ Terraform provider templates (aws/openstack)
+- configs/ OpenStack config manager + docs
+- templates/ Supporting templates and assets
+- ai_generator/ AI-assisted topology authoring CLI
+- terraform-projects/ Generated Terraform projects per provider/environment
+- requirements.txt Python dependencies
 
 ## Quick Start
 
-1. Install: `pip install -r requirements.txt` and ensure Terraform is on PATH.  
-2. Prepare topology: edit `terraform-generator/topology.json` or use the AI generator (`python3 ai_generator/topology_generator.py interactive`).  
-3. Validate and generate Terraform: `cd terraform-generator && python3 generate.py [aws|openstack] <copies>`.  
-4. Deploy: `cd ../terraform-projects/<provider>_<suffix> && terraform init && terraform apply`.  
+1. Install: `pip install -r requirements.txt` and ensure Terraform is on PATH.
+2. Prepare topology: edit `generate/topology.json` or use the AI generator (`python3 ai_generator/topology_generator.py interactive`).
+3. Validate and generate Terraform: `cd generate && python3 terraform_generator.py [aws|openstack] <copies>`.
+4. Deploy: `cd ../terraform-projects/<provider>_<suffix> && terraform init && terraform apply`.
 
 ## Scope and Limitations
 
