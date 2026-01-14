@@ -66,7 +66,7 @@ USER_DATA_SCHEMA = {
           "target": {
             "type": ["string", "null"],
             "default": "",
-            "pattern": "^/.*"
+            "pattern": "^(/[^\n]+|[A-Za-z]:\\\\[^\n]+)$"
           },
           "validate_cmd": {
             "type": ["string", "null"],
@@ -1340,7 +1340,8 @@ USER_DATA_SCHEMA = {
           {"required": ["ntp"]},
           {"required": ["users"]},
           {"required": ["groups"]},
-          {"required": ["runcmd"]}
+          {"required": ["runcmd"]},
+          {"required": ["package"]}
         ]
       }
     },

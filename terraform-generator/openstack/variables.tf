@@ -33,7 +33,7 @@ variable "openstack_password" {
 variable "external_network_id" {
   description = "ID của external network trong OpenStack"
   type        = string
-  default     = "c668f27f-c14b-410d-b1df-016adc280c6e"
+  default     = "8990843f-fbc3-49f2-ad08-5eb9b263b23e"
 }
 
 variable "external_network_name" {
