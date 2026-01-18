@@ -68,7 +68,7 @@ def aws_security_group_block():
     module "security_group" {
       depends_on              = [module.network]
       source                  = "./modules/security_groups"
-      vpc_id                  = "vpc-0f9e1d98274fae447"
+      vpc_id                  = module.network.vpc_id
       required_security_groups = local.required_security_groups
     }
     """)
@@ -84,7 +84,7 @@ def aws_instance_module_block(validated_map):
       depends_on = [module.network, module.security_group]
       source     = "./modules/instance"
       for_each   = {{ for inst in local.topology.instances : inst.name => inst }}
-      vpc_id     = "vpc-0f9e1d98274fae447"
+      vpc_id     = module.network.vpc_id
       # Assign security groups for the instance (fallback to "default" if not found)
       security_group_ids = try(
         [for sg in each.value.security_groups : module.security_group.group_ids[sg]],
@@ -117,10 +117,17 @@ def aws_bastion_block():
       key_name                    = "toanndcloud-keypair"
       security_groups             = [module.security_group.group_ids["ssh-sg"]]
       associate_public_ip_address = true
-      # Use cloud-init script for initial setup of bastion
-      user_data = templatefile("${path.module}/cloud_init/bastion.sh", {
-        file_content = file("${path.root}/modules/keypair/tf-cloud-init")
-      })
+      # Inject private key into bastion for hop access to private instances
+      user_data = <<-EOF
+      #!/bin/bash
+      set -euo pipefail
+      install -d -m 700 /home/ubuntu/.ssh
+      cat > /home/ubuntu/.ssh/id_rsa <<'KEY'
+      ${file("${path.root}/modules/keypair/tf-cloud-init")}
+      KEY
+      chmod 600 /home/ubuntu/.ssh/id_rsa
+      chown -R ubuntu:ubuntu /home/ubuntu/.ssh
+      EOF
 
       tags = {
         Name = "bastion-host"
@@ -455,4 +462,3 @@ def aws_instance_with_remote_state_block(validated_map):
       assign_public_ip  = try(each.value.floating_ip, false)
     }}
     """)
-

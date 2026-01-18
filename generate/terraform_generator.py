@@ -743,11 +743,8 @@ class TerraformGenerator:
         # Generate unique suffixes for each copy
         suffixes = [str(uuid.uuid4())[:6] for _ in range(self.num_copies)]
 
-        # Create shared VPC for AWS (all copies share one VPC)
+        # Shared VPC is disabled to allow duplicate CIDRs across copies (AWS)
         use_shared_vpc = False
-        if self.provider == "aws":
-            self.create_shared_vpc_folder(main_folder, original_topology, suffixes)
-            use_shared_vpc = True
 
         # Create individual instance folders
         if RICH_AVAILABLE:
