@@ -2,24 +2,24 @@
 """
 Dual-AI topology fixer and reviewer
 
-Flow (Dual-AI Approval Required):
+Flow (Rule-based Gate + Dual-AI):
 - Validate topology.json with existing rules.
 - If errors, ask OpenAI (ChatGPT) to propose a fix.
 - Show diff preview (no changes written yet).
-- Re-validate the fixed topology in memory.
-- Ask Gemini to review the fixed topology.
-- Only apply if BOTH re-validation passes AND Gemini approves (status=pass).
-- Ask user for final confirmation before applying (unless --auto-apply).
+- Ask Gemini to review the fixed topology (advisory, not blocking).
+- Re-validate the fixed topology in memory (mandatory gate).
+- Apply if rule-based re-validation passes; prompt if review is "fail"
+  or --auto-apply is not set.
 
-This ensures cross-checking between two independent AI providers
-BEFORE any changes are written to disk.
+This keeps deterministic validation as the final gate while still
+leveraging a second AI for warnings and intent checks.
 """
 import argparse
 import json
 import os
 import sys
 import difflib
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Thêm root để import theo cấu trúc module mới
 ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -56,14 +56,41 @@ def fix_with_openai(topology: Dict[str, Any], errors: List[str], model: str) -> 
 
     client = OpenAI(api_key=api_key)
     system_prompt = (
-        "You are a cloud network engineer. Fix the provided topology JSON so it passes "
-        "schema and network logic validation. Keep intent and structure, only adjust values.\n"
+        "You are a topology fixer. Preserve intent and structure, make minimal changes.\n"
+        "Do NOT add/remove instances, networks, or routers. Do NOT rename instance/router names.\n"
+        "Only change values needed to resolve listed errors. Do not delete existing keys.\n"
+        "If a required key is missing, add it with a minimal valid value.\n"
+        "\n"
+        "Expected keys (structure summary):\n"
+        "- root: instances, networks, routers\n"
+        "- instance: name, image, cpu, ram, disk, networks, keypair, security_groups,\n"
+        "  floating_ip, floating_ip_pool, cloud_init\n"
+        "- instance.networks[]: name, ip\n"
+        "- network: name, cidr, gateway_ip, enable_dhcp, pool\n"
+        "- router: name, networks, external, routes\n"
+        "- router.networks[]: name, ip\n"
+        "- routes[]: destination, nexthop\n"
+        "\n"
         "Rules:\n"
-        "1) IPs must belong to their network CIDR; no duplicates.\n"
-        "2) gateway_ip must match router interface IP for that network.\n"
-        "3) All referenced networks must exist (fix typos if needed).\n"
+        "1) IPs must belong to their network CIDR; no duplicates within the same network.\n"
+        "2) gateway_ip must match router interface IP for that network (if gateway_ip is set).\n"
+        "3) All referenced networks must exist (fix typos; do not create new networks).\n"
         "4) Routes must have reachable nexthop from router interfaces.\n"
-        "5) floating_ip can be true/false or explicit IP.\n"
+        "5) floating_ip can be true/false or explicit IPv4 string.\n"
+        "\n"
+        "Example structure (do not copy values):\n"
+        "{\n"
+        "  \"instances\": [\n"
+        "    {\"name\": \"<vm>\", \"image\": \"<img>\", \"cpu\": 1, \"ram\": 1, \"disk\": 10,\n"
+        "     \"networks\": [{\"name\": \"<net>\", \"ip\": \"<ip>\"}]}\n"
+        "  ],\n"
+        "  \"networks\": [{\"name\": \"<net>\", \"cidr\": \"<cidr>\", \"gateway_ip\": \"<gw>\"}],\n"
+        "  \"routers\": [{\"name\": \"<r>\", \"external\": true,\n"
+        "    \"networks\": [{\"name\": \"<net>\", \"ip\": \"<gw>\"}],\n"
+        "    \"routes\": [{\"destination\": \"<cidr>\", \"nexthop\": \"<ip>\"}]}\n"
+        "  ]\n"
+        "}\n"
+        "\n"
         "Return ONLY JSON (no Markdown, no prose)."
     )
     user_prompt = (
@@ -90,8 +117,8 @@ def fix_with_openai(topology: Dict[str, Any], errors: List[str], model: str) -> 
 # --------------------------------------------------------------------------- #
 # Gemini reviewer (independent check after fix)
 # --------------------------------------------------------------------------- #
-def review_with_gemini(topology: Dict[str, Any], original_errors: List[str], post_validate_errors: List[str], model_name: str) -> Tuple[bool, Dict[str, Any], List[str]]:
-    """Ask Gemini to review fixed topology and return structured result."""
+def review_with_gemini(topology: Dict[str, Any], original_errors: List[str], post_validate_errors: Optional[List[str]], model_name: str) -> Tuple[bool, Dict[str, Any], List[str]]:
+    """Ask Gemini to review fixed topology and return structured result (advisory)."""
     try:
         import google.generativeai as genai
     except ImportError:
@@ -102,12 +129,14 @@ def review_with_gemini(topology: Dict[str, Any], original_errors: List[str], pos
         return False, {}, ["GEMINI_API_KEY not set"]
 
     review_prompt = (
-        "You are a second-opinion validator for cloud topology JSON. "
-        "Review the fixed topology and return JSON only with keys: "
-        "{status: pass|warn|fail, critical:[], warnings:[], notes:[]}. "
-        "Focus on: CIDR/IP correctness, gateway vs router IP alignment, "
-        "route nexthop reachability, missing networks/typos, duplicate IPs, "
-        "cloud_init references existing. Be concise."
+        "You are a reviewer for topology fixes. Do NOT fix or rewrite.\n"
+        "Return JSON only with keys: {status: pass|warn|fail, critical:[], warnings:[], notes:[]}.\n"
+        "Check for:\n"
+        "- Drift from intent: added/removed instances/networks/routers, renamed instance/router.\n"
+        "- Changes unrelated to listed errors.\n"
+        "- CIDR/IP correctness, duplicate IPs, gateway vs router IP alignment.\n"
+        "- Route destination CIDR validity and nexthop reachability.\n"
+        "Be concise."
     )
 
     genai.configure(api_key=api_key)
@@ -120,9 +149,12 @@ def review_with_gemini(topology: Dict[str, Any], original_errors: List[str], pos
         },
     )
 
+    revalidation_block = "NOT RUN YET" if post_validate_errors is None else (
+        "\n".join(f"- {e}" for e in post_validate_errors) if post_validate_errors else "None"
+    )
     user_prompt = (
         f"Original validation errors:\n" + "\n".join(f"- {e}" for e in original_errors) +
-        f"\n\nRe-validation errors after fix:\n" + ("\n".join(f"- {e}" for e in post_validate_errors) if post_validate_errors else "None") +
+        f"\n\nRe-validation errors after fix:\n{revalidation_block}" +
         f"\n\nFixed topology JSON:\n{json.dumps(topology, indent=2)}" +
         "\n\nIMPORTANT: Return ONLY valid JSON with this exact structure: {\"status\": \"pass\", \"critical\": [], \"warnings\": [], \"notes\": []}"
     )
@@ -243,42 +275,21 @@ def main():
         else:
             print("No changes proposed by OpenAI.")
 
-    # Re-validate fixed topology (in-memory, BEFORE applying)
-    tmp_path = os.path.join(os.path.dirname(topology_path) or ".", ".tmp_topology.json")
-    save_topology(tmp_path, fixed_topology)
-    post_valid, post_errors = validate_topology_file(tmp_path, args.provider)
-    if os.path.exists(tmp_path):
-        os.remove(tmp_path)
-
-    if RICH_AVAILABLE:
-        if post_valid:
-            console.print(Panel.fit("[green]✓ Re-validation passed after OpenAI fix[/green]", border_style="green"))
-        else:
-            console.print(Panel.fit("[red]✗ Re-validation still failing[/red]\n" + "\n".join(f"- {e}" for e in post_errors), border_style="red"))
-    else:
-        if post_valid:
-            print("✓ Re-validation passed after OpenAI fix.")
-        else:
-            print("✗ Re-validation still failing:")
-            for e in post_errors:
-                print(f"- {e}")
-
     # Gemini review (independent check BEFORE applying)
     if RICH_AVAILABLE:
         console.print("\n[cyan]Requesting Gemini review...[/cyan]")
-    review_ok, review, review_errors = review_with_gemini(fixed_topology, errors, post_errors, args.gemini_model)
+    review_ok, review, review_errors = review_with_gemini(fixed_topology, errors, None, args.gemini_model)
     
-    gemini_approved = False
+    review_status = "unavailable"
     if review_ok:
-        gemini_status = review.get("status", "").lower()
-        gemini_approved = gemini_status == "pass"
+        review_status = (review.get("status") or "warn").lower()
         
         if RICH_AVAILABLE:
             table = Table(title="Gemini Review", border_style="dim")
             table.add_column("Field", style="cyan")
             table.add_column("Value")
-            status_color = "green" if gemini_approved else ("yellow" if gemini_status == "warn" else "red")
-            table.add_row("status", f"[{status_color}]{gemini_status.upper()}[/{status_color}]")
+            status_color = "green" if review_status == "pass" else ("yellow" if review_status == "warn" else "red")
+            table.add_row("status", f"[{status_color}]{review_status.upper()}[/{status_color}]")
             table.add_row("critical", "\n".join(review.get("critical", [])) or "-")
             table.add_row("warnings", "\n".join(review.get("warnings", [])) or "-")
             table.add_row("notes", "\n".join(review.get("notes", [])) or "-")
@@ -288,62 +299,74 @@ def main():
             print(json.dumps(review, indent=2))
     else:
         if RICH_AVAILABLE:
-            console.print(Panel.fit("[red]Gemini review failed[/red]\n" + "\n".join(review_errors), border_style="red"))
+            console.print(Panel.fit("[yellow]Gemini review skipped[/yellow]\n" + "\n".join(review_errors), border_style="yellow"))
         else:
-            print("Gemini review failed:")
+            print("Gemini review skipped:")
             for e in review_errors:
                 print(f"- {e}")
 
-    # Dual-AI approval check
-    dual_approved = post_valid and gemini_approved
-    
+    # Re-validate fixed topology (in-memory, BEFORE applying)
+    tmp_path = os.path.join(os.path.dirname(topology_path) or ".", ".tmp_topology.json")
+    save_topology(tmp_path, fixed_topology)
+    post_valid, post_errors = validate_topology_file(tmp_path, args.provider)
+    if os.path.exists(tmp_path):
+        os.remove(tmp_path)
+
+    if post_valid:
+        if RICH_AVAILABLE:
+            console.print(Panel.fit("[green]✓ Re-validation passed after OpenAI fix[/green]", border_style="green"))
+        else:
+            print("✓ Re-validation passed after OpenAI fix.")
+    else:
+        if RICH_AVAILABLE:
+            console.print(Panel.fit("[red]✗ Re-validation still failing[/red]\n" + "\n".join(f"- {e}" for e in post_errors), border_style="red"))
+        else:
+            print("✗ Re-validation still failing:")
+            for e in post_errors:
+                print(f"- {e}")
+        sys.exit(2)
+
     if RICH_AVAILABLE:
         console.print("\n" + "─" * 50)
-        console.print("[bold]Dual-AI Approval Status:[/bold]")
-        console.print(f"  Re-validation: {'[green]✓ PASS[/green]' if post_valid else '[red]✗ FAIL[/red]'}")
-        console.print(f"  Gemini Review: {'[green]✓ PASS[/green]' if gemini_approved else '[red]✗ FAIL[/red]'}")
+        console.print("[bold]Decision Summary:[/bold]")
+        console.print("  Re-validation: [green]✓ PASS[/green]")
+        console.print(f"  Gemini Review: {review_status.upper()}")
         console.print("─" * 50)
     else:
         print("\n" + "─" * 50)
-        print("Dual-AI Approval Status:")
-        print(f"  Re-validation: {'✓ PASS' if post_valid else '✗ FAIL'}")
-        print(f"  Gemini Review: {'✓ PASS' if gemini_approved else '✗ FAIL'}")
+        print("Decision Summary:")
+        print("  Re-validation: ✓ PASS")
+        print(f"  Gemini Review: {review_status.upper()}")
         print("─" * 50)
 
-    # Only apply if BOTH validations pass
-    if dual_approved:
-        should_apply = False
-        
-        if args.auto_apply:
-            should_apply = True
-            if RICH_AVAILABLE:
-                console.print("[cyan]Auto-applying (--auto-apply flag set)...[/cyan]")
+    review_blocks_auto = review_status == "fail"
+    should_apply = False
+
+    if args.auto_apply and not review_blocks_auto:
+        should_apply = True
+        if RICH_AVAILABLE:
+            console.print("[cyan]Auto-applying (--auto-apply flag set)...[/cyan]")
+    else:
+        if review_blocks_auto and RICH_AVAILABLE:
+            console.print("\n[bold yellow]Gemini flagged issues (status=FAIL). Review before applying.[/bold yellow]")
+        elif RICH_AVAILABLE:
+            console.print("\n[bold yellow]Re-validation passed. Apply changes?[/bold yellow]")
+        response = input("Apply fixed topology to file? (y/N): ").strip().lower()
+        should_apply = response in ("y", "yes")
+
+    if should_apply:
+        save_topology(topology_path, fixed_topology)
+        if RICH_AVAILABLE:
+            console.print(Panel.fit("[green]✓ Applied OpenAI fix to file[/green]", border_style="green"))
         else:
-            # Ask user for confirmation
-            if RICH_AVAILABLE:
-                console.print("\n[bold yellow]Both validations passed! Apply changes?[/bold yellow]")
-            response = input("Apply fixed topology to file? (y/N): ").strip().lower()
-            should_apply = response in ("y", "yes")
-        
-        if should_apply:
-            save_topology(topology_path, fixed_topology)
-            if RICH_AVAILABLE:
-                console.print(Panel.fit("[green]✓ Applied OpenAI fix to file[/green]", border_style="green"))
-            else:
-                print("✓ Applied OpenAI fix to file.")
-            sys.exit(0)
-        else:
-            if RICH_AVAILABLE:
-                console.print("[dim]Changes not applied (user declined).[/dim]")
-            else:
-                print("Changes not applied (user declined).")
-            sys.exit(0)
+            print("✓ Applied OpenAI fix to file.")
+        sys.exit(0)
     else:
         if RICH_AVAILABLE:
-            console.print(Panel.fit("[red]✗ Cannot apply: Dual-AI approval required (both must pass)[/red]", border_style="red"))
+            console.print("[dim]Changes not applied (user declined).[/dim]")
         else:
-            print("✗ Cannot apply: Dual-AI approval required (both must pass).")
-        sys.exit(2)
+            print("Changes not applied (user declined).")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
