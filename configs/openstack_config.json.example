@@ -1,0 +1,29 @@
+{
+  "profiles": {
+    "default": {
+      "auth_url": "http://10.102.192.230:5000",
+      "region": "RegionOne",
+      "project_name": "dacn",
+      "username": "dacn",
+      "password": "your_password",
+      "user_domain_name": "Default",
+      "project_domain_id": "default"
+    },
+    "alternate": {
+      "auth_url": "http://another-ip:5000",
+      "region": "RegionOne",
+      "project_name": "another_project",
+      "username": "another_user",
+      "password": "another_password",
+      "user_domain_name": "Default",
+      "project_domain_id": "default"
+    }
+  },
+  "active_profile": "default",
+  "auto_discover": {
+    "external_network": true,
+    "endpoints": true,
+    "images": true,
+    "flavors": true
+  }
+}

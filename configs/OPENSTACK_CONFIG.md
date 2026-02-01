@@ -148,15 +148,6 @@ python3 terraform_generator.py openstack 1
 python3 configs/openstack_config_manager.py switch --profile prod
 python3 terraform_generator.py openstack 1
 ```
-
-## Lợi ích
-
-✅ **Không hardcode**: Credentials và endpoints được quản lý tập trung
-✅ **Multi-environment**: Dễ dàng switch giữa nhiều môi trường
-✅ **Auto-discovery**: Tự động phát hiện external network, endpoints
-✅ **Version control friendly**: Template file có thể commit, config file thì gitignore
-✅ **Security**: Credentials không bị hardcode trong code
-
 ## Cài đặt Dependencies
 
 ```bash
@@ -176,17 +167,3 @@ openstack_config.json
 terraform.tfvars
 *.tfstate*
 ```
-
-## Troubleshooting
-
-### Lỗi "No config found"
-
-→ Chạy `python3 configs/openstack_config_manager.py setup` để tạo config
-
-### Lỗi "OpenStack SDK not available"
-
-→ Cài: `pip install openstacksdk`
-
-### Discovery không hoạt động
-
-→ Kiểm tra credentials và network connectivity đến OpenStack endpoint

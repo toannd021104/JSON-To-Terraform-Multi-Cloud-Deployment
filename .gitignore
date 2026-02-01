@@ -37,7 +37,7 @@ __pycache__/
 *.tfstate.backup
 .terraform/
 .terraform.lock.hcl
-
+__init__.py
 # Python virtual environment
 venv/
 env/
