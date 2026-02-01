@@ -1,22 +1,17 @@
 {
-  "target" : "linux",
-  "package_reboot_if_required": true,
-  "package_update": false,
-  "package_upgrade": false,
+  "target": "linux",
+  "package": [
+    {
+      "name": "git"
+    },
+    {
+      "name": "traceroute"
+    }
+  ],
   "hostname": "toanquoc",
-  "preserve_hostname": false,
-  "create_hostname_file": true,
-  "fqdn": "toanquocfpdn.example.com",
-  "prefer_fqdn_over_hostname": false,
-  "manage_etc_hosts": false,
   "timezone": "Asia/Ho_Chi_Minh",
   "locale": "en_US.UTF-8",
-  "groups": [
-    "devops",
-    "monitoring",
-    "docker",
-    "toanquoc"
-  ],
+  "groups": ["devops", "monitoring", "docker", "toanquoc"],
   "users": [
     "default",
     {
@@ -29,7 +24,7 @@
       "lock_passwd": false,
       "expiredate": "2025-12-31",
       "create_groups": true,
-      "plain_passwd": "plain_password",
+      "password": "plain_password",
       "ssh_authorized_keys": [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeBase64HereOnlyAsExample comment"
       ],
@@ -42,74 +37,47 @@
       "system": false,
       "no_create_home": true,
       "shell": "/bin/false",
-      "plain_passwd": "prometheus",
+      "password": "prometheus",
       "lock_passwd": false
     },
     {
-      "name": "ubuntu1",
+      "name": "ubuntu",
       "gecos": "Ubuntu Test User",
       "primary_group": "toanquoc",
       "shell": "/bin/bash",
       "lock_passwd": false,
       "sudo": "ALL=(ALL) NOPASSWD:ALL",
-      "plain_passwd": "ubuntu"
+      "password": "ubuntu"
     }
   ],
   "files": [
-      {
-        "path": "/opt/test",
-        "type": "file",
-        "content": "Original file!",
-        "owner": "root:root",
-        "mode": "0644",
-        "backup": true
-      },
-      {
-        "path": "/opt/test-dir",
-        "type": "dir",
-        "owner": "root:root",
-        "mode": "0755"
-      },
-      {
-        "path": "/opt/test-symlink",
-        "type": "link",
-        "target": "/opt/test",
-        "owner": "root:root",
-        "mode": "0755"
-      },
-      {
-        "path": "/opt/test-source",
-        "type": "file",
-        "source": "https://raw.githubusercontent.com/canonical/cloud-init/main/doc/examples/cloud-config.txt",
-        "owner": "root:root",
-        "mode": "0755"
-      }
-  ],
-  "package": [
     {
-      "name": "nginx",
-      "ensure": "latest",
-      "options": [
-        "--no-install-recommends",
-        "--allow-downgrades",
-        "-y"
-      ],
-      "mark_hold": true
+      "path": "/opt/test",
+      "type": "file",
+      "content": "Original file!",
+      "owner": "root:root",
+      "mode": "0644",
+      "backup": true
     },
     {
-      "name": "apache2",
-      "ensure": "absent",
-      "options": [
-        "--purge",
-        "--auto-remove",
-        "-y"
-      ]
+      "path": "/opt/test-dir",
+      "type": "dir",
+      "owner": "root:root",
+      "mode": "0755"
     },
     {
-      "name": "git"
+      "path": "/opt/test-symlink",
+      "type": "link",
+      "target": "/opt/test",
+      "owner": "root:root",
+      "mode": "0755"
     },
     {
-      "name": "traceroute"
+      "path": "/opt/test-source",
+      "type": "file",
+      "source": "https://raw.githubusercontent.com/canonical/cloud-init/main/doc/examples/cloud-config.txt",
+      "owner": "root:root",
+      "mode": "0755"
     }
   ],
   "exec": [
@@ -117,12 +85,8 @@
       "command": "echo 'Test file created at '$(date) > /tmp/test-app.log",
       "creates": "/tmp/test-app.log",
       "cwd": "/tmp",
-      "environment": [
-        "TEST_ENV=production",
-        "TEST_DATE=$(date +%Y%m%d)"
-      ],
+      "environment": ["TEST_ENV=production", "TEST_DATE=$(date +%Y%m%d)"],
       "onlyif": "test -d /tmp",
-      "umask": "0022",
       "timeout": 10
     },
     {
@@ -137,16 +101,11 @@
   ],
   "ssh_config": {
     "ssh_deletekeys": true,
-    "ssh_genkeytypes": [
-      "ed25519",
-      "rsa"
-    ],
+    "ssh_genkeytypes": ["ed25519", "rsa"],
     "ssh_quiet_keygen": true,
     "ssh_publish_hostkeys": {
       "enabled": true,
-      "blacklist": [
-        "rsa"
-      ]
+      "blacklist": ["rsa"]
     },
     "allow_public_ssh_keys": true,
     "disable_root": true,
@@ -156,24 +115,11 @@
     ["mkdir", "-p", "/run/early-setup"],
     ["sh", "-c", "echo 'bootcmd started at $(date)' >> /var/log/cloud-init.log"]
   ],
-  "swap": {
-    "filename": "/swapfile",
-    "size": "1G",
-    "maxsize": "2G"
-  },
-  "growpart": {
-    "mode": "auto",
-    "devices": [
-      "/"
-    ],
-    "ignore_growroot_disabled": true
-  },
-  "resize_rootfs":true,
   "power_state": {
-      "delay": "now",
-      "mode": "reboot",
-      "message": "Rebooting to apply package updates...",
-      "timeout": 30,
-      "condition": [ "/usr/bin/test", "-f", "/var/run/reboot-required"]
+    "delay": "now",
+    "mode": "reboot",
+    "message": "Rebooting to apply package updates...",
+    "timeout": 30,
+    "condition": ["/usr/bin/test", "-f", "/var/run/reboot-required"]
   }
 }

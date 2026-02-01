@@ -340,7 +340,7 @@ USER_DATA_SCHEMA = {
                 ],
                 "description": "Linux: number of days until disabled (e.g., '30'). Windows: true/false to disable account."
               },
-              "passwd": {
+              "password": {
                 "oneOf": [
                   {
                     "type": "string",

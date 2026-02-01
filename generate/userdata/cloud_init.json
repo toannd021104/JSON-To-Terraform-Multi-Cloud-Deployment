@@ -1,58 +1,16 @@
 {
   "target": "linux",
-  "package_reboot_if_required": true,
-  "package_update": false,
-  "package_upgrade": false,
-  "hostname": "toanquoc",
-  "preserve_hostname": false,
-  "create_hostname_file": true,
-  "fqdn": "toanquocfpdn.example.com",
-  "prefer_fqdn_over_hostname": false,
-  "manage_etc_hosts": false,
-  "timezone": "Asia/Ho_Chi_Minh",
-  "locale": "en_US.UTF-8",
-  "groups": ["devops", "monitoring", "docker", "toanquoc"],
-  "users": [
-    "default",
+  "package": [
     {
-      "name": "user",
-      "gecos": "DevOps Student",
-      "primary_group": "devops",
-      "shell": "/bin/bash",
-      "uid": 1111,
-      "system": false,
-      "lock_passwd": false,
-      "expiredate": "2025-12-31",
-      "create_groups": true,
-      "plain_passwd": "plain_password",
-      "ssh_authorized_keys": [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeBase64HereOnlyAsExample comment"
-      ],
-      "sudo": "ALL=(ALL) NOPASSWD:ALL"
+      "name": "git"
     },
     {
-      "name": "prometheus",
-      "gecos": "System monitoring user",
-      "primary_group": "monitoring",
-      "system": false,
-      "no_create_home": true,
-      "shell": "/bin/false",
-      "plain_passwd": "prometheus",
-      "lock_passwd": false
-    },
-    {
-      "name": "ubuntu",
-      "gecos": "Ubuntu Test User",
-      "primary_group": "toanquoc",
-      "shell": "/bin/bash",
-      "lock_passwd": false,
-      "sudo": "ALL=(ALL) NOPASSWD:ALL",
-      "plain_passwd": "ubuntu"
+      "name": "traceroute"
     }
   ],
   "files": [
     {
-      "path": "/opt/test",
+      "path": "/opt/original-file.txt",
       "type": "file",
       "content": "Original file!",
       "owner": "root:root",
@@ -60,40 +18,24 @@
       "backup": true
     },
     {
-      "path": "/opt/test-dir",
+      "path": "/opt/dir",
       "type": "dir",
       "owner": "root:root",
       "mode": "0755"
     },
     {
-      "path": "/opt/test-symlink",
+      "path": "/opt/symlink",
       "type": "link",
       "target": "/opt/test",
       "owner": "root:root",
       "mode": "0755"
     },
     {
-      "path": "/opt/test-source",
+      "path": "/opt/source",
       "type": "file",
       "source": "https://raw.githubusercontent.com/canonical/cloud-init/main/doc/examples/cloud-config.txt",
       "owner": "root:root",
       "mode": "0755"
-    }
-  ],
-  "package": [
-    {
-      "name": "nginx",
-      "ensure": "latest",
-      "options": ["--no-install-recommends", "--allow-downgrades", "-y"],
-      "mark_hold": true
-    },
-    {
-      "name": "apache2",
-      "ensure": "absent",
-      "options": ["--purge", "--auto-remove", "-y"]
-    },
-    {
-      "name": "git"
     }
   ],
   "exec": [
@@ -103,7 +45,6 @@
       "cwd": "/tmp",
       "environment": ["TEST_ENV=production", "TEST_DATE=$(date +%Y%m%d)"],
       "onlyif": "test -d /tmp",
-      "umask": "0022",
       "timeout": 10
     },
     {
@@ -116,38 +57,17 @@
     },
     "echo 'Simple command without options'"
   ],
-  "ssh_config": {
-    "ssh_deletekeys": true,
-    "ssh_genkeytypes": ["ed25519", "rsa"],
-    "ssh_quiet_keygen": true,
-    "ssh_publish_hostkeys": {
-      "enabled": true,
-      "blacklist": ["rsa"]
-    },
-    "allow_public_ssh_keys": true,
-    "disable_root": true,
-    "disable_root_opts": "no-port-forwarding,no-agent-forwarding,no-X11-forwarding"
-  },
-  "bootcmd": [
-    ["mkdir", "-p", "/run/early-setup"],
-    ["sh", "-c", "echo 'bootcmd started at $(date)' >> /var/log/cloud-init.log"]
-  ],
-  "swap": {
-    "filename": "/swapfile",
-    "size": "1G",
-    "maxsize": "2G"
-  },
-  "growpart": {
-    "mode": "auto",
-    "devices": ["/"],
-    "ignore_growroot_disabled": true
-  },
-  "resize_rootfs": true,
-  "power_state": {
-    "delay": "now",
-    "mode": "reboot",
-    "message": "Rebooting to apply package updates...",
-    "timeout": 30,
-    "condition": ["/usr/bin/test", "-f", "/var/run/reboot-required"]
-  }
+  "hostname": "toanquoc",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "locale": "en_US.UTF-8",
+  "groups": ["devops", "monitoring", "docker", "toanquoc"],
+  "users": [
+    "default",
+    {
+      "name": "ubuntu1",
+      "gecos": "Ubuntu Test User",
+      "primary_group": "toanquoc",
+      "password": "ubuntu"
+    }
+  ]
 }

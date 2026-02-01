@@ -1,29 +1,58 @@
 {
   "target" : "wins",
+  "package": [
+    {
+      "name": "git"
+    },
+    {
+      "name": "7zip"
+    }
+  ],
   "files": [
     {
-      "type": "file",
-      "path": "C:\\ProgramData\\app-config.yaml",
-      "mode": "0640",
-      "content": "---\nnode_ip: '{{ ds.meta_data.local_ipv4 }}'\nhostname: '{{ ds.meta_data.hostname }}'\nenvironment: production"
+        "type": "dir",
+        "path": "C:\\Tools"
+    },
+    {
+        "type": "file",
+        "path": "C:\\Tools\\source.txt",
+        "source": "https://raw.githubusercontent.com/canonical/cloud-init/main/doc/examples/cloud-config.txt"
+    },
+    {
+        "type": "link",
+        "path": "C:\\Tools\\symlink.txt",
+        "target": "C:\\Tools\\source.txt"
     },
     {
       "type": "file",
-      "path": "C:\\Windows\\Temp\\cloud-init-complete.txt",
-      "mode": "0644",
-      "encoding": "b64",
-      "content": "Q2xvdWQtaW5pdCBjb21wbGV0ZWQgc3VjY2Vzc2Z1bGx5"
+      "path": "C:\\Tools\\normal-file.txt",
+      "content": "This is a simple test line of text.\nThis is the second line."
     }
   ],
+  "exec": [
+      {
+        "command": "New-Item -Path 'C:\\temp\\test-app.log' -ItemType File -Value \"Test file created at $(Get-Date)\" -Force",
+        "creates": "C:\\temp\\test-app.log",
+        "cwd": "C:\\temp",
+        "environment": [
+          "TEST_ENV=production",
+          "TEST_VERSION=1.0.2"
+        ],
+        "onlyif": "Test-Path -Path 'C:\\temp'",
+        "timeout": 15
+      },
+      {
+        "command": "Write-Host 'Checking logs...'; Get-ChildItem -Path 'C:\\temp\\test-*'",
+        "unless": "Test-Path -Path 'C:\\temp\\test-app.log'"
+      },
+      {
+        "command": "Write-Output 'System Uptime Info' > C:\\temp\\uptime.log; Get-CimInstance Win32_OperatingSystem | Select-Object LastBootUpTime >> C:\\temp\\uptime.log",
+        "onlyif": "Test-Path -Path 'C:\\' -PathType Container"
+      },
+      "Write-Host 'Simple PowerShell command without options'"
+    ],
   "timezone": "Asia/Saigon",
   "hostname": "toanwuoc-win-host",
-  "ntp": {
-    "enabled": true,
-    "servers": [
-      "time.windows.com",
-      "0.pool.ntp.org"
-    ]
-  },
   "groups": [
     "cloud-admins",
     "cloud-users"
@@ -34,24 +63,14 @@
       "gecos": "Cloud Administrator",
       "primary_group": "Administrators",
       "groups": "cloud-admins",
-      "passwd": "ToanWuoc123@!Admin",
-      "inactive": false
+      "password": "StrongPassw0rd"
     },
     {
       "name": "toanwuoc_user",
       "gecos": "ToanQuoc User",
       "primary_group": "Users",
       "groups": "cloud-users",
-      "passwd": "ToanWuoc123@!Admin",
-      "inactive": false,
-      "ssh_authorized_keys": [
-        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABbyV"
-      ]
+      "password": "StrongPassw0rd"
     }
-  ],
-  "exec": [
-    "powershell -Command \"Get-Date | Out-File C:\\Windows\\Temp\\cloud-init-start.log\"",
-    "netsh advfirewall firewall add rule name=\"Allow SSH\" dir=in action=allow protocol=TCP localport=22",
-    "powershell -Command \"Get-ComputerInfo | Out-File C:\\Windows\\Temp\\system-info.log\""
   ]
 }

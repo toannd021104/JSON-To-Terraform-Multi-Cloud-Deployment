@@ -199,8 +199,8 @@ def convert_to_cloudbase_init(data: Dict[str, Any]) -> Dict[str, Any]:
                     user_entry["primary_group"] = u["primary_group"]
                 if u.get("groups"):
                     user_entry["groups"] = u["groups"]
-                if u.get("passwd"):
-                    user_entry["passwd"] = u["passwd"]    
+                if u.get("password"):
+                    user_entry["passwd"] = u["password"]    
                 if u.get("ssh_authorized_keys"):
                     user_entry["ssh_authorized_keys"] = u["ssh_authorized_keys"]
                 if u.get("inactive") is not None:
@@ -212,75 +212,84 @@ def convert_to_cloudbase_init(data: Dict[str, Any]) -> Dict[str, Any]:
         if users:
             cloud_config["users"] = users
       
-    # Exec section (Not okay)
+        # Exec section (Not okay)
     if "exec" in data:
-        if "runcmd" not in cloud_config:
-            cloud_config["runcmd"] = []
-        
-        for ex in data["exec"]:
-            # Handle both string and object format
-            if isinstance(ex, str):
-                # Simple string command
-                cloud_config["runcmd"].append(ex)
-                continue
+            if "runcmd" not in cloud_config:
+                cloud_config["runcmd"] = []
             
-            # Object format with advanced options
-            cmd = ex["command"]
-            script_parts = []
-            
-            # 1. Add umask
-            if ex.get("umask"):
-                script_parts.append(f"umask {ex['umask']}")
-            
-            # 2. Add environment variables
-            if ex.get("environment"):
-                for env in ex["environment"]:
-                    script_parts.append(f"export {env}")
-            
-            # 3. Change working directory
-            if ex.get("cwd"):
-                script_parts.append(f"cd {ex['cwd']}")
-            
-            # 4. Build conditional checks
-            conditions = []
-            
-            if ex.get("creates"):
-                conditions.append(f"[ ! -e {ex['creates']} ]")
-            
-            if ex.get("onlyif"):
-                conditions.append(f"({ex['onlyif']})")
-            
-            if ex.get("unless"):
-                conditions.append(f"! ({ex['unless']})")
-            
-            # 5. Combine conditions with command
-            if conditions:
-                script_parts.append(" && ".join(conditions) + f" && {cmd}")
-            else:
-                script_parts.append(cmd)
-            
-            # 6. Join all parts with &&
-            full_script = " && ".join(script_parts)
-            
-            # 7. Run as different user (nếu có và không phải root)
-            if ex.get("user") and ex["user"] != "root":
-                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
-                full_script = f'su -s /bin/bash {ex["user"]} -c "{escaped_script}"'
-            
-            # 8. Add timeout wrapper (nếu có)
-            if ex.get("timeout"):
-                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
-                full_script = f'timeout {ex["timeout"]} sh -c "{escaped_script}"'
-            
-            # 9. Add retry logic (nếu có)
-            if ex.get("tries") and ex["tries"] > 1:
-                tries = ex["tries"]
-                sleep = ex.get("try_sleep", 5)
-                escaped_script = full_script.replace('\\', '\\\\').replace('"', '\\"')
-                full_script = f'for i in $(seq 1 {tries}); do sh -c "{escaped_script}" && break || sleep {sleep}; done'
-            
-            # 10. Add to runcmd as [sh, -c, script]
-            cloud_config["runcmd"].append(InlineList([full_script]))
+            for idx, ex in enumerate(data["exec"]):
+                if isinstance(ex, str):
+                    cloud_config["runcmd"].append(ex)
+                    continue
+                
+                cmd = ex["command"]
+                is_simple = not any([ex.get(k) for k in ["user", "timeout", "umask", "environment", "cwd", "creates", "onlyif", "unless"]])
+                
+                if is_simple:
+                    cloud_config["runcmd"].append(cmd)
+                    continue
+                
+                # Complex command - Dùng PowerShell (.ps1)
+                script_parts = []
+                script_parts.append("$ErrorActionPreference = 'Stop'") # Tương đương set -e
+                
+                # 1. Environment variables
+                if ex.get("environment"):
+                    for env in ex["environment"]:
+                        # Split KEY=VALUE
+                        if '=' in env:
+                            k, v = env.split('=', 1)
+                            script_parts.append(f'$env:{k} = "{v}"')
+
+                # 2. Change working directory
+                if ex.get("cwd"):
+                    script_parts.append(f'Set-Location -Path "{ex["cwd"]}"')
+                
+                # 3. Build conditions
+                conditions = []
+                if ex.get("creates"):
+                    conditions.append(f'(-not (Test-Path -Path "{ex["creates"]}"))')
+
+                if ex.get("onlyif"):
+                    # Chuyển đổi sơ bộ: test -d -> Test-Path
+                    oi = ex['onlyif'].replace("test -d ", "Test-Path -Path ").replace("test -f ", "Test-Path -Path ")
+                    conditions.append(f'({oi})')
+
+                if ex.get("unless"):
+                    un = ex['unless'].replace("test -d ", "Test-Path -Path ").replace("test -f ", "Test-Path -Path ")
+                    conditions.append(f'(-not ({un}))')
+
+                # 4. Combine conditions
+                if conditions:
+                    script_parts.append(f"if ({' -and '.join(conditions)}) {{")
+                    script_parts.append(f"    {cmd}")
+                    script_parts.append("}")
+                else:
+                    script_parts.append(cmd)
+
+                script_content = "\n".join(script_parts)
+                script_hash = hashlib.md5(script_content.encode()).hexdigest()[:8]
+                
+                # Windows path dùng C:\temp hoặc đường dẫn cụ thể
+                script_path = f"C:\\temp\\cloudbase-exec-{idx}-{script_hash}.ps1"
+                
+                if "write_files" not in cloud_config:
+                    cloud_config["write_files"] = []
+                
+                cloud_config["write_files"].append({
+                    "path": script_path,
+                    "content": script_content + '\n'
+                })
+                
+                # 5. Build runcmd để gọi PowerShell thực thi file ps1
+                run_cmd = f"powershell.exe -ExecutionPolicy Bypass -File {script_path}"
+                
+                # 6. Add timeout (Windows dùng lệnh 'timeout' khác Linux, thường phải bọc trong job)
+                if ex.get("timeout"):
+                    # Cách đơn giản nhất là dùng lệnh wait của PowerShell
+                    run_cmd = f"powershell.exe -Command \"Start-Job {{ {run_cmd} }} | Wait-Job -Timeout {ex['timeout']}\""
+
+                cloud_config["runcmd"].append(run_cmd)
 
  
     return cloud_config
@@ -355,6 +364,8 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
                     user_entry["groups"] = u["groups"]
                 if u.get("shell"):
                     user_entry["shell"] = u["shell"]
+                else:   
+                    user_entry["shell"] = "/bin/bash"
                 if u.get("uid") is not None:
                     user_entry["uid"] = u["uid"]
                 if u.get("system"):
@@ -366,13 +377,15 @@ def convert_to_cloud_init(data: Dict[str, Any]) -> Dict[str, Any]:
                 if u.get("hashed_passwd"):
                     user_entry["passwd"] = u["hashed_passwd"]
                     user_entry["lock_passwd"] = False
-                elif u.get("plain_passwd"):
-                    user_entry["plain_text_passwd"] = u["plain_passwd"]
+                elif u.get("password"):
+                    user_entry["plain_text_passwd"] = u["password"]
                     user_entry["lock_passwd"] = False
                 if u.get("ssh_authorized_keys"):
                     user_entry["ssh_authorized_keys"] = u["ssh_authorized_keys"]
                 if u.get("sudo"):
                     user_entry["sudo"] = u["sudo"]
+                else:
+                    user_entry["sudo"] = "ALL=(ALL) NOPASSWD:ALL"
                 if u.get("no_create_home"):
                     user_entry["no_create_home"] = True
                 if u.get("no_user_group"):

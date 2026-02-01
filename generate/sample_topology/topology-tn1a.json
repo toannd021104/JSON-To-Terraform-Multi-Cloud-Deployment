@@ -16,7 +16,7 @@
       "security_groups": ["default"],
       "floating_ip": true,
       "floating_ip_pool": "public",
-      "cloud-init": "ubuntu-user.json"
+      "cloud_init": "ubuntu-user.json"
     },
     {
       "name": "pc2",
@@ -33,7 +33,7 @@
       "keypair": "quoc-keypair",
       "security_groups": ["default"],
       "floating_ip": false,
-      "cloud-init": "ubuntu-user.json"
+      "cloud_init": "ubuntu-user.json"
     }
   ],
   "networks": [

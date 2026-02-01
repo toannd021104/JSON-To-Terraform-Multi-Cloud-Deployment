@@ -1,0 +1,131 @@
+{
+  "networks": [
+    { "name": "connect-dist-net", "cidr": "10.0.200.0/30", "gateway_ip": null, "enable_dhcp": false },
+    { "name": "core-1-dist-1", "cidr": "10.0.1.0/30", "gateway_ip": null, "enable_dhcp": false },
+    { "name": "core-1-dist-2", "cidr": "10.0.2.0/30", "gateway_ip": null, "enable_dhcp": false },
+    { "name": "core-2-dist-1", "cidr": "10.0.3.0/30", "gateway_ip": null, "enable_dhcp": false },
+    { "name": "core-2-dist-2", "cidr": "10.0.4.0/30", "gateway_ip": null, "enable_dhcp": false },
+    { "name": "access-net-1", "cidr": "192.168.10.0/24", "gateway_ip": "192.168.10.1", "enable_dhcp": true },
+    { "name": "access-net-2", "cidr": "192.168.11.0/24", "gateway_ip": "192.168.11.1", "enable_dhcp": true },
+    { "name": "access-net-3", "cidr": "192.168.12.0/24", "gateway_ip": "192.168.12.1", "enable_dhcp": true },
+    { "name": "access-net-4", "cidr": "192.168.13.0/24", "gateway_ip": "192.168.13.1", "enable_dhcp": true }
+  ],
+  "routers": [
+    {
+      "name": "core-router-1",
+      "external": true,
+      "networks": [
+        { "name": "core-1-dist-1", "ip": "10.0.1.1" },
+        { "name": "core-1-dist-2", "ip": "10.0.2.1" }
+      ],
+      "routes": [
+        { "destination": "192.168.10.0/24", "nexthop": "10.0.1.2" },
+        { "destination": "192.168.11.0/24", "nexthop": "10.0.1.2" },
+        { "destination": "192.168.12.0/24", "nexthop": "10.0.2.2" },
+        { "destination": "192.168.13.0/24", "nexthop": "10.0.2.2" }
+      ]
+    },
+    {
+      "name": "core-router-2",
+      "external": true,
+      "networks": [
+        { "name": "core-2-dist-1", "ip": "10.0.3.1" },
+        { "name": "core-2-dist-2", "ip": "10.0.4.1" }
+      ],
+      "routes": [
+        { "destination": "192.168.10.0/24", "nexthop": "10.0.3.2" },
+        { "destination": "192.168.11.0/24", "nexthop": "10.0.3.2" },
+        { "destination": "192.168.12.0/24", "nexthop": "10.0.4.2" },
+        { "destination": "192.168.13.0/24", "nexthop": "10.0.4.2" }
+      ]
+    },
+    {
+      "name": "dist-router-1",
+      "external": false,
+      "networks": [
+        { "name": "core-1-dist-1", "ip": "10.0.1.2" },
+        { "name": "core-2-dist-1", "ip": "10.0.3.2" },
+
+        { "name": "access-net-1", "ip": "192.168.10.1" },
+        { "name": "access-net-2", "ip": "192.168.11.1" },
+
+        { "name": "connect-dist-net", "ip": "10.0.200.1" }
+      ],
+      "routes": [
+        { "destination": "0.0.0.0/0", "nexthop": "10.0.1.1" },
+        { "destination": "192.168.12.0/24", "nexthop": "10.0.200.2" },
+        { "destination": "192.168.13.0/24", "nexthop": "10.0.200.2" }
+      ]
+    },
+    {
+      "name": "dist-router-2",
+      "external": false,
+      "networks": [
+        { "name": "core-1-dist-2", "ip": "10.0.2.2" },
+        { "name": "core-2-dist-2", "ip": "10.0.4.2" },
+        { "name": "access-net-3", "ip": "192.168.12.1" },
+        { "name": "access-net-4", "ip": "192.168.13.1" },
+        { "name": "connect-dist-net", "ip": "10.0.200.2" }
+      ],
+      "routes": [
+        { "destination": "0.0.0.0/0", "nexthop": "10.0.2.1" },
+        { "destination": "192.168.10.0/24", "nexthop": "10.0.200.1" },
+        { "destination": "192.168.11.0/24", "nexthop": "10.0.200.1" }
+      ]
+    }
+  ],
+  "instances": [
+    {
+      "name": "pc1",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        { "name": "access-net-1", "ip": "192.168.10.100" }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": ["default"],
+      "cloud_init": "ubuntu-user.json"
+    },
+    {
+      "name": "pc2",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        { "name": "access-net-2", "ip": "192.168.11.100" }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": ["default"],
+      "cloud_init": "ubuntu-user.json"
+    },
+    {
+      "name": "pc3",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        { "name": "access-net-3", "ip": "192.168.12.100" }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": ["default"],
+      "cloud_init": "ubuntu-user.json"
+    },
+    {
+      "name": "pc4",
+      "image": "ubuntu-server-noble",
+      "cpu": 1,
+      "ram": 2,
+      "disk": 10,
+      "networks": [
+        { "name": "access-net-4", "ip": "192.168.13.100" }
+      ],
+      "keypair": "quoc-keypair",
+      "security_groups": ["default"],
+      "cloud_init": "ubuntu-user.json"
+    }
+  ]
+}
